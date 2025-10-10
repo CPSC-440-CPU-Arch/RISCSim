@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.bit_utils import *
+from src.utils.bit_utils import *
 
 
 def test_bits_and():
