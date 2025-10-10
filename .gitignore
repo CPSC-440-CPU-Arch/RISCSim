@@ -45,4 +45,4 @@ Thumbs.db
 # Claude Code and AI tracking (not needed in repo, will add at the end of project)
 .claude/
 ai_report.json
-AI_USAGE.md
+
