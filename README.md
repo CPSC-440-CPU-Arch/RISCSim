@@ -34,7 +34,7 @@ This project is a **midterm alternative project** that will later be merged into
 - **FPU**: Float32 unit with normalization and rounding
 - **Registers**: 32 integer registers (x0-x31), 32 FP registers (f0-f31), FCSR
 
-## Project Structure
+## Initial Project Structure (Subject to Refactoring)
 
 ```
 RISCSim/
