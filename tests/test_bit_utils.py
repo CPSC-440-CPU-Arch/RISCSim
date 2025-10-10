@@ -5,11 +5,7 @@ Unit tests for bit_utils module.
 Tests all bit manipulation functions to ensure correct behavior.
 """
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from src.utils.bit_utils import *
+from riscsim.utils.bit_utils import *
 
 
 def test_bits_and():

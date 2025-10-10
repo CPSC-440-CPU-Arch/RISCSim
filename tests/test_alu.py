@@ -1,7 +1,5 @@
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from riscsim.cpu.alu import alu
 
-from src.cpu.alu import alu
-
-alu()
+def test_alu():
+    """Test the ALU function."""
+    alu()

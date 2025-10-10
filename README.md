@@ -34,79 +34,89 @@ This project is a **midterm alternative project** that will later be merged into
 - **FPU**: Float32 unit with normalization and rounding
 - **Registers**: 32 integer registers (x0-x31), 32 FP registers (f0-f31), FCSR
 
-## Initial Project Structure (Subject to Refactoring)
+## Project Structure
 
 ```
 RISCSim/
-├── src/
-│   ├── bit_utils.py           # Bit array operations and conversions
-│   ├── twos_complement.py     # Two's-complement encode/decode
-│   ├── alu.py                 # Arithmetic Logic Unit (ADD/SUB)
-│   ├── shifter.py             # Barrel shifter (SLL/SRL/SRA)
-│   ├── mdu.py                 # Multiply/Divide Unit
-│   ├── fpu.py                 # Floating-Point Unit (Float32)
-│   ├── registers.py           # Register file and FCSR
-│   └── simulator.py           # Main simulator interface
-├── tests/
+├── riscsim/                   # Main package (renamed from src/)
+│   ├── __init__.py
+│   ├── cpu/                   # CPU components
+│   │   ├── __init__.py
+│   │   ├── alu.py             # Arithmetic Logic Unit
+│   │   ├── shifter.py         # Barrel shifter
+│   │   ├── mdu.py             # Multiply/Divide Unit
+│   │   ├── fpu.py             # Floating-Point Unit
+│   │   └── registers.py       # Register file and FCSR
+│   └── utils/                 # Utility modules
+│       ├── __init__.py
+│       └── bit_utils.py       # Bit manipulation utilities
+├── tests/                     # Test suite
 │   ├── test_bit_utils.py
-│   ├── test_twos_complement.py
 │   ├── test_alu.py
-│   ├── test_shifter.py
-│   ├── test_mdu.py
-│   └── test_fpu.py
+│   └── ...
+├── pyproject.toml             # Modern Python packaging config
 ├── README.md
-├── AI_USAGE.md                # AI usage disclosure
-├── ai_report.json             # AI contribution metrics
-└── PROJECTINSTRUCTIONS.md     # Original project specification
+└── PROJECTINSTRUCTIONS.md
 ```
 
 ## Installation
 
+### For Development (Recommended)
+
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/CPSC-440-CPU-Arch/RISCSim.git
 cd RISCSim
 
-# Create virtual environment (recommended)
+# Create virtual environment
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install in editable mode (changes reflect immediately)
+pip install -e .
+
+# Or install with development dependencies
+pip install -e ".[dev]"
+```
+
+### For Users
+
+```bash
+# Install directly from repository
+pip install git+https://github.com/CPSC-440-CPU-Arch/RISCSim.git
+
+# Or after cloning
+pip install .
 ```
 
 ## Usage
 
 ```python
-from src.simulator import RISCSimulator
+from riscsim.utils.bit_utils import bits_and, bits_to_hex_string
+from riscsim.cpu.alu import alu
 
-# Create simulator instance
-sim = RISCSimulator()
+# Use bit utilities
+result = bits_and([1,0,1,0], [1,1,0,0])
+print(bits_to_hex_string(result))  # Output: 0x8
 
-# Example: Two's-complement encoding
-result = sim.encode_twos_complement(13)
-print(f"Binary: {result['bin']}, Hex: {result['hex']}")
-
-# Example: Integer multiply
-result = sim.mul(12345678, -87654321)
-print(f"Result: {result['rd']}, Overflow: {result['overflow']}")
-
-# Example: Float32 addition
-result = sim.fadd_f32(1.5, 2.25)
-print(f"Result: {result['value']}, Bits: {result['bits']}")
+# Use CPU components
+alu()  # Will be expanded with actual ALU operations
 ```
 
 ## Testing
 
 ```bash
 # Run all tests
-pytest tests/
+pytest
 
 # Run specific test file
-pytest tests/test_alu.py
+pytest tests/test_bit_utils.py
 
-# Run with verbose output and traces
-pytest tests/ -v --tb=short
+# Run with verbose output
+pytest -v
+
+# Run with print statements visible
+pytest -v -s
 ```
 
 ## Design Constraints
