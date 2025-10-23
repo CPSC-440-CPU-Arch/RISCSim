@@ -32,16 +32,26 @@ two_complement() Strategy:
 6. prettyprint():
 
 """
+from bit_utils import *
+
 MAX_INT = 2147483647
 MIN_INT = -2147483648
-digit_to_bin_rep = {
-    0: [0,0,0,0,0,0,0,0], 1: [0,0,0,0,0,0,0,1], 2: [0,0,0,0,0,0,1,0], 3: [0,0,0,0,0,0,1,1], 4: [0,0,0,0,0,1,0,0],
-    5: [0,0,0,0,0,1,0,1], 6: [0,0,0,0,0,1,1,0], 7: [0,0,0,0,0,1,1,1], 8: [0,0,0,0,1,0,0,0], 9: [0,0,0,0,1,0,0,1]
+digit_to_32bin = {
+    0: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], 
+    1: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1], 
+    2: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0], 
+    3: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1], 
+    4: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0],
+    5: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1], 
+    6: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0], 
+    7: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1], 
+    8: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0], 
+    9: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1]
 }
 
 def twos_complement(num: int):
     overflow_flag = False
-    binary_vector = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    binary_vector = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
     hex_string = ""
 
     if num > MAX_INT or num < MIN_INT: overflow_flag = True
@@ -49,30 +59,11 @@ def twos_complement(num: int):
     return (binary_vector, hex_string, overflow_flag)
 
 def add32(a, b):
-    """
-    32-bit ripple-carry adder.
-    Inputs: lists of 0/1 (any length ≤ 32). MSB at index 0.
-    Pads to 32 bits with leading zeros. Returns 32-bit list.
-    No arithmetic operators used.
-    """
     # copy inputs (avoid concatenation)
     aa = list(a)
     bb = list(b)
-
-    # pad to 32 with leading zeros (no +, no subtraction)
-    while len(aa) < 32:
-        aa.insert(0, 0)
-    while len(bb) < 32:
-        bb.insert(0, 0)
-    # if longer than 32, keep only the least-significant 32 bits
-    if len(aa) > 32:
-        aa = aa[-32:]
-    if len(bb) > 32:
-        bb = bb[-32:]
-
-    out = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    out = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
     carry = False
-
     # from LSB to MSB
     for i in reversed(range(32)):
         ai = bool(aa[i])
@@ -84,15 +75,19 @@ def add32(a, b):
         carry = (ai and bi) or (carry and xor_ab)
 
         out[i] = 1 if sum_bit else 0
-
     # overflow (final carry) dropped to keep 32 bits
     return out
+
+def mul32(multiplicand: list, multiplier: list):
+    product = []
+
+    for i in reversed(range(32)):
 
 if __name__ == "__main__":
     result = twos_complement(2147483648)
     print(result)
-    binrep1 = digit_to_bin_rep[8]
-    binrep2 = digit_to_bin_rep[8]
+    binrep1 = digit_to_32bin[8]
+    binrep2 = digit_to_32bin[8]
     print(binrep1)
     sum = add32(binrep1, binrep2)
     print(sum)
