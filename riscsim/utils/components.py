@@ -46,9 +46,7 @@ def oneBitAdder(a, b, carry_in):
     return [sum, carry_out]
 
 
-# def overFLowDetection(binvert, b, carryOut, )
-
-def OneBitALU(a, b, ainvert, binvert, carry_in, operation):
+def OneBitALU(a, b, ainvert, binvert, carry_in, operation, less=0):
 
     if ainvert: a = invert(a)
     if binvert: b = invert(b)
@@ -64,11 +62,39 @@ def OneBitALU(a, b, ainvert, binvert, carry_in, operation):
     elif operation == [1,0]:
         result = sum_bit
     elif operation == [1, 1]:
-        result = "place holder"
+        result = less
     else:
         raise ValueError("Invalid operation control bits")
-    return result, carry_out
+    return [result, carry_out]
 
+def overFLowDetection(carry_in, carry_out):
+    return carry_in ^ carry_out
+
+
+def MSBOneBitALU(a, b, ainvert, binvert, carry_in, operation, less=0):
+    if ainvert: a = invert(a)
+    if binvert: b = invert(b)
+
+    and_out = a and b
+    or_out = a or b
+    sum_bit, carry_out = oneBitAdder(a, b, carry_in)
+
+    overflow_flag = overFLowDetection(carry_in, carry_out)
+    set_bit = sum_bit ^ overflow_flag
+
+    if operation == [0,0]:
+        result = and_out
+    elif operation == [0,1]:
+        result = or_out
+    elif operation == [1,0]:
+        result = sum_bit
+    elif operation == [1, 1]:
+        result = 0
+    else:
+        raise ValueError("Invalid operation control bits")
+
+    return [result, carry_out, overflow_flag, set_bit]
+    
 
 
 if __name__ == "__main__":
