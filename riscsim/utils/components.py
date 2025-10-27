@@ -89,7 +89,7 @@ def MSBOneBitALU(a, b, ainvert, binvert, carry_in, operation, less=0):
     elif operation == [1,0]:
         result = sum_bit
     elif operation == [1, 1]:
-        result = 0
+        result = less
     else:
         raise ValueError("Invalid operation control bits")
 
