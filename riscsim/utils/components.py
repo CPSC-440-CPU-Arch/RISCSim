@@ -54,6 +54,7 @@ def OneBitALU(a, b, ainvert, binvert, carry_in, operation, less=0):
     and_out = a and b
     or_out = a or b
     sum_bit, carry_out = oneBitAdder(a, b, carry_in)
+    xor_out = or_out and invert(and_out)
 
     if operation == [0,0]:
         result = and_out
@@ -61,8 +62,10 @@ def OneBitALU(a, b, ainvert, binvert, carry_in, operation, less=0):
         result = or_out
     elif operation == [1,0]:
         result = sum_bit
-    elif operation == [1, 1]:
+    elif operation == [1, 1] and binvert == 1:
         result = less
+    elif operation == [1, 1] and binvert == 0:
+        result = xor_out
     else:
         raise ValueError("Invalid operation control bits")
     return [result, carry_out]
@@ -78,6 +81,7 @@ def MSBOneBitALU(a, b, ainvert, binvert, carry_in, operation, less=0):
     and_out = a and b
     or_out = a or b
     sum_bit, carry_out = oneBitAdder(a, b, carry_in)
+    xor_out = or_out and invert(and_out)
 
     overflow_flag = overFLowDetection(carry_in, carry_out)
     set_bit = sum_bit ^ overflow_flag
@@ -88,17 +92,12 @@ def MSBOneBitALU(a, b, ainvert, binvert, carry_in, operation, less=0):
         result = or_out
     elif operation == [1,0]:
         result = sum_bit
-    elif operation == [1, 1]:
+    elif operation == [1, 1] and binvert == 1:
         result = less
+    elif operation == [1, 1] and binvert == 0:
+        result = xor_out
     else:
         raise ValueError("Invalid operation control bits")
 
     return [result, carry_out, overflow_flag, set_bit]
     
-
-
-if __name__ == "__main__":
-    result = OneBitALU(1, 1, 1, 0, 0, [1, 0])
-    print(result)
-
-
