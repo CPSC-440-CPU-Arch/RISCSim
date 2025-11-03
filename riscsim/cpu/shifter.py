@@ -92,7 +92,7 @@ def shifter(bits, shamt, op):
 
         # Stage 5: Shift by 1 if shamt_bits[4] == 1
         if shamt_bits[4] == 1:
-            current = concat_bits(slice_bits(current, 1, 32), [0]*1)
+            current = concat_bits(slice_bits(current, 1, 32), [0])
 
     elif op_str == "SRL":
         # Shift Right Logical - fill with zeros
