@@ -138,7 +138,7 @@ def shifter(bits, shamt, op):
 
         # Stage 5: Shift by 1 if shamt_bits[4] == 1
         if shamt_bits[4] == 1:
-            current = concat_bits([sign_bit]*1, slice_bits(current, 0, 31))
+            current = concat_bits([sign_bit], slice_bits(current, 0, 31))
 
     return current
 # AI-END
