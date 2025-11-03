@@ -32,7 +32,7 @@ two_complement() Strategy:
 6. prettyprint():
 
 """
-from bit_utils import *
+from riscsim.utils.bit_utils import *
 
 MAX_INT = 2147483647
 MIN_INT = -2147483648
@@ -82,6 +82,7 @@ def mul32(multiplicand: list, multiplier: list):
     product = []
 
     for i in reversed(range(32)):
+        pass  # TODO: Implement multiplication logic
 
 if __name__ == "__main__":
     result = twos_complement(2147483648)

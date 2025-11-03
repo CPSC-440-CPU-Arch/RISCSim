@@ -1,4 +1,3 @@
-# AI-BEGIN
 """
 Comprehensive test suite for RISC-V Register File.
 
@@ -594,4 +593,3 @@ if __name__ == "__main__":
     print("Running RegisterFile tests...")
     pytest.main([__file__, "-v"])
 
-# AI-END

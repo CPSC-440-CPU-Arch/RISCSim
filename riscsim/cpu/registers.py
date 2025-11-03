@@ -1,4 +1,3 @@
-# AI-BEGIN
 """
 RISC-V Register File implementation.
 
@@ -361,4 +360,3 @@ class RegisterFile:
         return self.fcsr[7]
 
 
-# AI-END
