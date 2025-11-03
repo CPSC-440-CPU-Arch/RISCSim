@@ -115,7 +115,7 @@ def shifter(bits, shamt, op):
 
         # Stage 5: Shift by 1 if shamt_bits[4] == 1
         if shamt_bits[4] == 1:
-            current = concat_bits([0]*1, slice_bits(current, 0, 31))
+            current = concat_bits([0], slice_bits(current, 0, 31))
 
     elif op_str == "SRA":
         # Shift Right Arithmetic - fill with sign bit
