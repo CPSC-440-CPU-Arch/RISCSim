@@ -79,10 +79,74 @@ def add32(a, b):
     return out
 
 def mul32(multiplicand: list, multiplier: list):
-    product = []
+    """
+    Multiply two 32-bit numbers using shift-add algorithm.
 
-    for i in reversed(range(32)):
-        pass  # TODO: Implement multiplication logic
+    Args:
+        multiplicand: 32-bit array (MSB at index 0)
+        multiplier: 32-bit array (MSB at index 0)
+
+    Returns:
+        64-bit product as list (MSB at index 0)
+        [high 32 bits][low 32 bits]
+    """
+    # Initialize 64-bit product to zero
+    product_lo = [0] * 32
+    product_hi = [0] * 32
+
+    # Shift-add multiplication
+    for i in range(32):
+        # Check multiplier bit from LSB (index 31) to MSB (index 0)
+        bit_index = 31 - i
+        if multiplier[bit_index] == 1:
+            # Add multiplicand shifted left by i positions
+
+            if i == 0:
+                # No shift needed, add to low part
+                product_lo = add32(product_lo, multiplicand)
+            elif i < 32:
+                # Shift multiplicand left by i positions
+                # Lower part: bits from position i onwards, padded with i zeros on right
+                shifted_lo = multiplicand[i:] + [0] * i
+
+                # Upper part: top i bits that were shifted out
+                # These appear at the bottom (LSB side) of the high word
+                shifted_hi = [0] * (32 - i) + multiplicand[0:i]
+
+                # Add shifted values to product
+                # First add to low part
+                old_product_lo = list(product_lo)
+                product_lo = add32(product_lo, shifted_lo)
+
+                # Check for carry from low to high
+                # Carry occurs if result wrapped around (became smaller)
+                carry = False
+                for j in range(32):
+                    if old_product_lo[j] == 1 and shifted_lo[j] == 1:
+                        carry = True
+                        break
+                    elif old_product_lo[j] == 1 or shifted_lo[j] == 1:
+                        if product_lo[j] == 0:
+                            carry = True
+                            break
+
+                # Add to high part
+                product_hi = add32(product_hi, shifted_hi)
+                if carry:
+                    # Add 1 to high part for carry
+                    carry_bit = [0] * 31 + [1]
+                    product_hi = add32(product_hi, carry_bit)
+            else:
+                # Shift >= 32, add to high part only
+                shift_amount = i - 32
+                if shift_amount == 0:
+                    product_hi = add32(product_hi, multiplicand)
+                else:
+                    shifted = multiplicand[shift_amount:] + [0] * shift_amount
+                    product_hi = add32(product_hi, shifted)
+
+    # Return 64-bit product
+    return product_hi + product_lo
 
 if __name__ == "__main__":
     result = twos_complement(2147483648)
