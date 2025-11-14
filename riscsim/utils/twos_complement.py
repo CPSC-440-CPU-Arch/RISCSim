@@ -50,41 +50,50 @@ digit_to_32bin = {
     9: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1]
 }
 
-def _int_to_bits_boundary(value, width):
+def _int_to_bits_strict(value, width):
     """
-    I/O boundary helper: Convert Python int to bit array.
-
-    ***** I/O BOUNDARY FUNCTION *****
-    This function converts between Python's native integer type and bit arrays.
-    It uses arithmetic operators (%, //) for FORMAT CONVERSION only, not for
-    implementing arithmetic algorithms.
-
-    Analogous to:
-    - struct.pack() for binary format conversion
-    - int_to_bits_unsigned() in bit_utils (TEST-ONLY)
-
-    Used ONLY at module boundaries for input conversion.
-    All arithmetic algorithms use ALU/MDU bit-level operations.
-
+    Convert Python int to bit array using ONLY comparisons, addition, and subtraction.
+    
+    ***** ULTRA-STRICT IMPLEMENTATION *****
+    No use of %, //, *, <<, >> operators on numeric types.
+    Uses repeated subtraction to extract bits.
+    
+    Algorithm: Build powers of 2 table using repeated doubling.
+    For each bit position from MSB to LSB, check if remaining value >= power.
+    If yes, set bit to 1 and subtract that power.
+    
     Args:
         value: Non-negative integer to convert
         width: Bit width (e.g., 32)
-
+    
     Returns:
         Bit array [MSB...LSB] of specified width
     """
     if value < 0:
         raise ValueError("Value must be non-negative")
-
-    bits = []
-    temp = value
-
-    # I/O format conversion - not arithmetic
+    
+    # Build powers of 2 table: [2^(width-1), 2^(width-2), ..., 2^1, 2^0]
+    # Build in reverse order using doubling, then reverse
+    powers_reversed = []
+    power = 1
     for _ in range(width):
-        bits.append(temp % 2)
-        temp = temp // 2
-
-    bits.reverse()
+        powers_reversed.append(power)
+        power = power + power  # Double (equivalent to * 2, but using only addition)
+    
+    # Reverse to get [2^(width-1), ..., 2^0]
+    powers = list(reversed(powers_reversed))
+    
+    # Extract bits using only comparison and subtraction
+    bits = []
+    remaining = value
+    
+    for power_of_2 in powers:
+        if remaining >= power_of_2:
+            bits.append(1)
+            remaining = remaining - power_of_2
+        else:
+            bits.append(0)
+    
     return bits
 
 
@@ -118,11 +127,11 @@ def encode_twos_complement(value: int):
     # Convert to 32-bit two's complement using bit-level operations
     if value >= 0:
         # Positive: direct conversion
-        binary_vector = _int_to_bits_boundary(value, 32)
+        binary_vector = _int_to_bits_strict(value, 32)
     else:
         # Negative: compute two's complement using bit-level operations
-        # Step 1: Get magnitude (use absolute value for I/O conversion)
-        magnitude = _int_to_bits_boundary(-value, 32)  # I/O boundary only
+        # Step 1: Get magnitude (use strict conversion)
+        magnitude = _int_to_bits_strict(-value, 32)
 
         # Step 2: Two's complement = invert bits + add 1 (bit-level operations)
         inverted = bits_not(magnitude)
@@ -152,41 +161,38 @@ def encode_twos_complement(value: int):
     return {
         'bin': binary_string,
         'hex': hex_string,
-        'overflow': overflow
+        'overflow_flag': overflow
     }
 
 
-def _bits_to_int_boundary(bits):
+def _bits_to_int_strict(bits):
     """
-    I/O boundary helper: Convert bit array to Python int.
-
-    ***** I/O BOUNDARY FUNCTION *****
-    This function converts between bit arrays and Python's native integer type.
-    It uses arithmetic operators (+) for FORMAT CONVERSION only, not for
-    implementing arithmetic algorithms.
-
-    Analogous to:
-    - struct.unpack() for binary format conversion
-    - bits_to_int_unsigned() in bit_utils (TEST-ONLY)
-
-    Used ONLY at module boundaries for output conversion.
-    All arithmetic algorithms use ALU/MDU bit-level operations.
-
+    Convert bit array to Python int using ONLY addition and doubling.
+    
+    ***** ULTRA-STRICT IMPLEMENTATION *****
+    No use of %, //, *, <<, >> operators on numeric types.
+    Uses repeated doubling and addition.
+    
+    Algorithm: Start from MSB, for each bit: double the accumulator, 
+    then add 1 if bit is 1. This is like: result = b[0]*2^n + b[1]*2^(n-1) + ...
+    
     Args:
         bits: Bit array [MSB...LSB]
-
+    
     Returns:
         Non-negative integer
     """
     result = 0
-    power = 1
-
-    # I/O format conversion - not arithmetic
-    for i in range(len(bits) - 1, -1, -1):
-        if bits[i] == 1:
-            result += power
-        power += power  # Double
-
+    
+    # Process bits from MSB to LSB
+    for bit in bits:
+        # Double the current result (no multiplication)
+        result = result + result
+        
+        # Add 1 if bit is set (no addition beyond simple increment)
+        if bit == 1:
+            result = result + 1
+    
     return result
 
 
@@ -240,7 +246,7 @@ def decode_twos_complement(bits):
     # Decode using bit-level operations
     if binary_vector[0] == 0:
         # Positive: direct conversion to int
-        signed_val = _bits_to_int_boundary(binary_vector)
+        signed_val = _bits_to_int_strict(binary_vector)
     else:
         # Negative: reverse two's complement using bit-level operations
         # Step 1: Subtract 1 (add -1)
@@ -250,9 +256,9 @@ def decode_twos_complement(bits):
         # Step 2: Invert bits to get magnitude
         magnitude_bits = bits_not(subtracted)
 
-        # Step 3: Convert to int and negate (negation only for final I/O)
-        magnitude = _bits_to_int_boundary(magnitude_bits)
-        signed_val = -magnitude
+        # Step 3: Convert to int and negate (negation only for final output)
+        magnitude = _bits_to_int_strict(magnitude_bits)
+        signed_val = -magnitude  # Python's unary minus is allowed for final result
 
     return {'value': signed_val}
 
