@@ -429,4 +429,73 @@ def rem(rs1_bits, rs2_bits):
 def remu(rs1_bits, rs2_bits):
     """REMU: Unsigned division remainder."""
     return mdu_div(rs1_bits, rs2_bits, op="REMU")
+
+
+def mdu_with_control(rs1_bits, rs2_bits, control_signals):
+    """
+    MDU operation wrapper that integrates with control unit signals.
+    
+    This function provides a bridge between the control unit and the raw MDU,
+    allowing for cycle-accurate simulation with control signal tracking.
+    
+    Args:
+        rs1_bits: 32-bit first operand
+        rs2_bits: 32-bit second operand
+        control_signals: ControlSignals instance containing md_op
+        
+    Returns:
+        Dictionary containing:
+          - 'result': 32-bit result (quotient for DIV/DIVU, remainder for REM/REMU, low 32 for MUL, high 32 for MULH variants)
+          - 'hi_bits': 32-bit high half (for multiplication operations)
+          - 'flags': Dictionary with overflow flag
+          - 'signals': Updated ControlSignals instance
+          - 'trace': List of operation trace strings
+    """
+    # Extract MDU operation from control signals
+    md_op = control_signals.md_op
+    
+    # Perform MDU operation based on operation type
+    if md_op in ['MUL', 'MULH', 'MULHU', 'MULHSU']:
+        # Multiplication operations
+        result_dict = mdu_mul(rs1_bits, rs2_bits, op=md_op)
+        
+        # Create trace summary
+        trace_summary = f"MDU {md_op}: result={bits_to_hex_string(result_dict['result'])}"
+        
+        # Return results with control signals
+        return {
+            'result': result_dict['result'],
+            'hi_bits': result_dict.get('hi_bits', [0]*32),
+            'flags': result_dict['flags'],
+            'signals': control_signals.copy(),
+            'trace': [trace_summary] + result_dict['trace']
+        }
+    
+    elif md_op in ['DIV', 'DIVU', 'REM', 'REMU']:
+        # Division operations
+        result_dict = mdu_div(rs1_bits, rs2_bits, op=md_op)
+        
+        # Determine which value is the result
+        if md_op in ['DIV', 'DIVU']:
+            result = result_dict['quotient']
+            trace_summary = f"MDU {md_op}: quotient={bits_to_hex_string(result)}"
+        else:  # REM, REMU
+            result = result_dict['remainder']
+            trace_summary = f"MDU {md_op}: remainder={bits_to_hex_string(result)}"
+        
+        # Return results with control signals
+        return {
+            'result': result,
+            'quotient': result_dict['quotient'],
+            'remainder': result_dict['remainder'],
+            'flags': result_dict['flags'],
+            'signals': control_signals.copy(),
+            'trace': [trace_summary] + result_dict['trace']
+        }
+    
+    else:
+        # Unknown operation
+        raise ValueError(f"Unknown MDU operation: {md_op}")
+
+
 # AI-END

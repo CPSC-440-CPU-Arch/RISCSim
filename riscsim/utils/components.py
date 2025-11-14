@@ -1,3 +1,4 @@
+# AI-BEGIN
 """
 Notes from appendix A:
 
@@ -101,3 +102,4 @@ def MSBOneBitALU(a, b, ainvert, binvert, carry_in, operation, less=0):
 
     return [result, carry_out, overflow_flag, set_bit]
     
+# AI-END

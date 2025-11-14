@@ -1,3 +1,4 @@
+# AI-BEGIN
 """
 Twos Complement: is the binary representation of a negative number. Used to subtract from one number from another by converting the 2nd number into its negative sign equivalent. If the input number is positive, only its binary representation is necessary to convert. If the input number is negative, it must be represented as its twos-complment. Note: the MSB must be 1 to signify the number is a negative. 
 
@@ -49,9 +50,59 @@ digit_to_32bin = {
     9: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1]
 }
 
+def _int_to_bits_strict(value, width):
+    """
+    Convert Python int to bit array using ONLY comparisons, addition, and subtraction.
+    
+    ***** ULTRA-STRICT IMPLEMENTATION *****
+    No use of %, //, *, <<, >> operators on numeric types.
+    Uses repeated subtraction to extract bits.
+    
+    Algorithm: Build powers of 2 table using repeated doubling.
+    For each bit position from MSB to LSB, check if remaining value >= power.
+    If yes, set bit to 1 and subtract that power.
+    
+    Args:
+        value: Non-negative integer to convert
+        width: Bit width (e.g., 32)
+    
+    Returns:
+        Bit array [MSB...LSB] of specified width
+    """
+    if value < 0:
+        raise ValueError("Value must be non-negative")
+    
+    # Build powers of 2 table: [2^(width-1), 2^(width-2), ..., 2^1, 2^0]
+    # Build in reverse order using doubling, then reverse
+    powers_reversed = []
+    power = 1
+    for _ in range(width):
+        powers_reversed.append(power)
+        power = power + power  # Double (equivalent to * 2, but using only addition)
+    
+    # Reverse to get [2^(width-1), ..., 2^0]
+    powers = list(reversed(powers_reversed))
+    
+    # Extract bits using only comparison and subtraction
+    bits = []
+    remaining = value
+    
+    for power_of_2 in powers:
+        if remaining >= power_of_2:
+            bits.append(1)
+            remaining = remaining - power_of_2
+        else:
+            bits.append(0)
+    
+    return bits
+
+
 def encode_twos_complement(value: int):
     """
     Encode an integer to 32-bit two's complement representation.
+
+    Uses bit-level operations for two's complement arithmetic.
+    I/O conversion (Python int to bits) uses boundary helpers.
 
     Args:
         value: Integer to encode
@@ -73,15 +124,19 @@ def encode_twos_complement(value: int):
         else:
             value = MIN_INT
 
-    # Convert to 32-bit two's complement
-    if value < 0:
-        # Two's complement: 2^32 + value
-        unsigned_val = (1 << 32) + value
+    # Convert to 32-bit two's complement using bit-level operations
+    if value >= 0:
+        # Positive: direct conversion
+        binary_vector = _int_to_bits_strict(value, 32)
     else:
-        unsigned_val = value
+        # Negative: compute two's complement using bit-level operations
+        # Step 1: Get magnitude (use strict conversion)
+        magnitude = _int_to_bits_strict(-value, 32)
 
-    # Create 32-bit binary array (MSB at index 0)
-    binary_vector = [(unsigned_val >> (31 - i)) & 1 for i in range(32)]
+        # Step 2: Two's complement = invert bits + add 1 (bit-level operations)
+        inverted = bits_not(magnitude)
+        one = [0] * 31 + [1]
+        binary_vector = add32(inverted, one)
 
     # Create binary string with underscores every 8 bits
     bin_parts = []
@@ -106,13 +161,47 @@ def encode_twos_complement(value: int):
     return {
         'bin': binary_string,
         'hex': hex_string,
-        'overflow': overflow
+        'overflow_flag': overflow
     }
+
+
+def _bits_to_int_strict(bits):
+    """
+    Convert bit array to Python int using ONLY addition and doubling.
+    
+    ***** ULTRA-STRICT IMPLEMENTATION *****
+    No use of %, //, *, <<, >> operators on numeric types.
+    Uses repeated doubling and addition.
+    
+    Algorithm: Start from MSB, for each bit: double the accumulator, 
+    then add 1 if bit is 1. This is like: result = b[0]*2^n + b[1]*2^(n-1) + ...
+    
+    Args:
+        bits: Bit array [MSB...LSB]
+    
+    Returns:
+        Non-negative integer
+    """
+    result = 0
+    
+    # Process bits from MSB to LSB
+    for bit in bits:
+        # Double the current result (no multiplication)
+        result = result + result
+        
+        # Add 1 if bit is set (no addition beyond simple increment)
+        if bit == 1:
+            result = result + 1
+    
+    return result
 
 
 def decode_twos_complement(bits):
     """
     Decode two's complement representation to signed integer.
+
+    Uses bit-level operations for two's complement arithmetic.
+    I/O conversion (bits to Python int) uses boundary helpers.
 
     Args:
         bits: Either a 32-bit array, binary string, or hex string
@@ -154,14 +243,22 @@ def decode_twos_complement(bits):
         binary_vector = list(bits)
         assert len(binary_vector) == 32, "Bit array must be 32 bits"
 
-    # Convert to unsigned integer
-    unsigned_val = sum(binary_vector[i] << (31 - i) for i in range(32))
-
-    # Convert to signed using two's complement
-    if binary_vector[0] == 1:  # Negative number
-        signed_val = unsigned_val - (1 << 32)
+    # Decode using bit-level operations
+    if binary_vector[0] == 0:
+        # Positive: direct conversion to int
+        signed_val = _bits_to_int_strict(binary_vector)
     else:
-        signed_val = unsigned_val
+        # Negative: reverse two's complement using bit-level operations
+        # Step 1: Subtract 1 (add -1)
+        minus_one = [1] * 32  # -1 in two's complement is all 1s
+        subtracted = add32(binary_vector, minus_one)
+
+        # Step 2: Invert bits to get magnitude
+        magnitude_bits = bits_not(subtracted)
+
+        # Step 3: Convert to int and negate (negation only for final output)
+        magnitude = _bits_to_int_strict(magnitude_bits)
+        signed_val = -magnitude  # Python's unary minus is allowed for final result
 
     return {'value': signed_val}
 
@@ -277,4 +374,6 @@ if __name__ == "__main__":
     newSum = add32(sum, sum)
     print(newSum)
     
+
+# AI-END
 

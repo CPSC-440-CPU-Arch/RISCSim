@@ -1,3 +1,4 @@
+# AI-BEGIN
 """
 Test suite for RISC-V Multiply/Divide Unit (MDU)
 
@@ -435,5 +436,138 @@ class TestMDUEdgeCases:
         assert bin32_to_int(result['quotient'], signed=True) == 5
 
 
+# Phase 3: Control Signal Integration Tests
+
+def test_mdu_with_control_mul():
+    """Test MDU with control signals for MUL operation."""
+    from riscsim.cpu.mdu import mdu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.md_op = 'MUL'
+    signals.rf_waddr = [0, 0, 0, 1, 1]  # r3
+    signals.rf_we = 1
+    
+    a = int_to_bin32(7)
+    b = int_to_bin32(3)
+    
+    result_dict = mdu_with_control(a, b, signals)
+    
+    # Verify result
+    assert bin32_to_int(result_dict['result']) == 21
+    
+    # Verify trace
+    assert 'MDU MUL' in result_dict['trace'][0]
+    
+    # Verify signals preserved
+    assert result_dict['signals'].md_op == 'MUL'
+    assert result_dict['signals'].rf_waddr == [0, 0, 0, 1, 1]
+
+
+def test_mdu_with_control_mulh():
+    """Test MDU with control signals for MULH operation."""
+    from riscsim.cpu.mdu import mdu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.md_op = 'MULH'
+    signals.rf_we = 1
+    
+    # Large multiplication that produces high bits
+    a = int_to_bin32(0x80000000)  # INT_MIN
+    b = int_to_bin32(2)
+    
+    result_dict = mdu_with_control(a, b, signals)
+    
+    # Verify high bits are returned
+    assert 'hi_bits' in result_dict
+    assert 'MDU MULH' in result_dict['trace'][0]
+
+
+def test_mdu_with_control_div():
+    """Test MDU with control signals for DIV operation."""
+    from riscsim.cpu.mdu import mdu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.md_op = 'DIV'
+    signals.rf_we = 1
+    
+    a = int_to_bin32(20)
+    b = int_to_bin32(3)
+    
+    result_dict = mdu_with_control(a, b, signals)
+    
+    # Verify quotient is returned as result
+    assert bin32_to_int(result_dict['result'], signed=True) == 6
+    assert 'quotient' in result_dict
+    assert 'remainder' in result_dict
+    assert 'MDU DIV' in result_dict['trace'][0]
+
+
+def test_mdu_with_control_rem():
+    """Test MDU with control signals for REM operation."""
+    from riscsim.cpu.mdu import mdu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.md_op = 'REM'
+    signals.rf_we = 1
+    
+    a = int_to_bin32(20)
+    b = int_to_bin32(3)
+    
+    result_dict = mdu_with_control(a, b, signals)
+    
+    # Verify remainder is returned as result
+    assert bin32_to_int(result_dict['result'], signed=True) == 2
+    assert 'MDU REM' in result_dict['trace'][0]
+
+
+def test_mdu_with_control_div_by_zero():
+    """Test MDU division by zero handling with control signals."""
+    from riscsim.cpu.mdu import mdu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.md_op = 'DIV'
+    
+    a = int_to_bin32(10)
+    b = int_to_bin32(0)
+    
+    result_dict = mdu_with_control(a, b, signals)
+    
+    # DIV by zero should return -1 as quotient
+    assert bin32_to_int(result_dict['result'], signed=True) == -1
+    assert 'Division by zero' in ' '.join(result_dict['trace'])
+
+
+def test_mdu_with_control_signals_preserved():
+    """Test that control signals are preserved in MDU operations."""
+    from riscsim.cpu.mdu import mdu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.md_op = 'MUL'
+    signals.rf_waddr = [0, 1, 0, 1, 0]  # r10
+    signals.rf_we = 1
+    signals.cycle = 50
+    signals.md_start = 1
+    
+    a = int_to_bin32(100)
+    b = int_to_bin32(200)
+    
+    result_dict = mdu_with_control(a, b, signals)
+    returned_signals = result_dict['signals']
+    
+    # Verify signals are preserved
+    assert returned_signals.md_op == 'MUL'
+    assert returned_signals.rf_waddr == [0, 1, 0, 1, 0]
+    assert returned_signals.rf_we == 1
+    assert returned_signals.cycle == 50
+    assert returned_signals.md_start == 1
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
+# AI-END

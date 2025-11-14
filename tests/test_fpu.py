@@ -1,3 +1,4 @@
+# AI-BEGIN
 """
 Test suite for IEEE-754 Float32 Floating-Point Unit
 
@@ -482,5 +483,145 @@ class TestExceptionFlags:
         assert flags['overflow'] == 0
 
 
+# Phase 3: Control Signal Integration Tests
+
+def test_fpu_with_control_fadd():
+    """Test FPU with control signals for FADD operation."""
+    from riscsim.cpu.fpu import fpu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.fpu_op = 'FADD'
+    signals.round_mode = 0  # RoundTiesToEven
+    signals.rf_waddr = [0, 0, 0, 1, 1]  # f3
+    signals.rf_we = 1
+    
+    a = pack_f32(1.5)
+    b = pack_f32(2.5)
+    
+    result_dict = fpu_with_control(a, b, signals)
+    
+    # Verify result
+    result_val = unpack_f32(result_dict['result'])
+    assert abs(result_val - 4.0) < 1e-6
+    
+    # Verify trace
+    assert 'FPU FADD' in result_dict['trace'][0]
+    
+    # Verify signals preserved
+    assert result_dict['signals'].fpu_op == 'FADD'
+    assert result_dict['signals'].rf_waddr == [0, 0, 0, 1, 1]
+
+
+def test_fpu_with_control_fsub():
+    """Test FPU with control signals for FSUB operation."""
+    from riscsim.cpu.fpu import fpu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.fpu_op = 'FSUB'
+    signals.round_mode = 0
+    signals.rf_we = 1
+    
+    a = pack_f32(5.0)
+    b = pack_f32(3.0)
+    
+    result_dict = fpu_with_control(a, b, signals)
+    
+    # Verify result
+    result_val = unpack_f32(result_dict['result'])
+    assert abs(result_val - 2.0) < 1e-6
+    assert 'FPU FSUB' in result_dict['trace'][0]
+
+
+def test_fpu_with_control_fmul():
+    """Test FPU with control signals for FMUL operation."""
+    from riscsim.cpu.fpu import fpu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.fpu_op = 'FMUL'
+    signals.round_mode = 0
+    signals.rf_we = 1
+    
+    a = pack_f32(2.0)
+    b = pack_f32(3.5)
+    
+    result_dict = fpu_with_control(a, b, signals)
+    
+    # Verify result
+    result_val = unpack_f32(result_dict['result'])
+    assert abs(result_val - 7.0) < 1e-6
+    assert 'FPU FMUL' in result_dict['trace'][0]
+
+
+def test_fpu_with_control_exception_flags():
+    """Test FPU exception flag handling with control signals."""
+    from riscsim.cpu.fpu import fpu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.fpu_op = 'FADD'
+    signals.round_mode = 0
+    
+    # Test overflow
+    a = pack_f32(3.4e38)
+    b = pack_f32(3.4e38)
+    
+    result_dict = fpu_with_control(a, b, signals)
+    
+    # Verify overflow flag
+    assert result_dict['flags']['overflow'] == 1
+
+
+def test_fpu_with_control_rounding_mode():
+    """Test FPU with different rounding modes."""
+    from riscsim.cpu.fpu import fpu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.fpu_op = 'FADD'
+    signals.round_mode = 0  # RoundTiesToEven
+    signals.rf_we = 1
+    
+    a = pack_f32(1.0)
+    b = pack_f32(0.0)
+    
+    result_dict = fpu_with_control(a, b, signals)
+    
+    # Verify rounding mode was used
+    assert 'signals' in result_dict
+    assert result_dict['signals'].round_mode == 0
+
+
+def test_fpu_with_control_signals_preserved():
+    """Test that control signals are preserved in FPU operations."""
+    from riscsim.cpu.fpu import fpu_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+    
+    signals = ControlSignals()
+    signals.fpu_op = 'FADD'
+    signals.rf_waddr = [0, 1, 0, 1, 0]  # f10
+    signals.rf_we = 1
+    signals.cycle = 100
+    signals.fpu_start = 1
+    signals.round_mode = 0
+    
+    a = pack_f32(1.0)
+    b = pack_f32(2.0)
+    
+    result_dict = fpu_with_control(a, b, signals)
+    returned_signals = result_dict['signals']
+    
+    # Verify signals are preserved
+    assert returned_signals.fpu_op == 'FADD'
+    assert returned_signals.rf_waddr == [0, 1, 0, 1, 0]
+    assert returned_signals.rf_we == 1
+    assert returned_signals.cycle == 100
+    assert returned_signals.fpu_start == 1
+    assert returned_signals.round_mode == 0
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
+# AI-END

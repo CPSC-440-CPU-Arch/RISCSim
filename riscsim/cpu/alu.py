@@ -1,3 +1,4 @@
+# AI-BEGIN
 from riscsim.utils.components import OneBitALU, MSBOneBitALU
 
 
@@ -89,10 +90,55 @@ def alu(bitsA, bitsB, opcode):
     return (result, flags)
 
 
+def alu_with_control(operand_a, operand_b, control_signals):
+    """
+    ALU operation wrapper that integrates with control unit signals.
+    
+    This function provides a bridge between the control unit and the raw ALU,
+    allowing for cycle-accurate simulation with control signal tracking.
+    
+    Args:
+        operand_a: 32-bit array for first operand
+        operand_b: 32-bit array for second operand
+        control_signals: ControlSignals instance containing ALU opcode
+        
+    Returns:
+        Dictionary containing:
+          - 'result': 32-bit result array
+          - 'flags': Dictionary with N, Z, C, V flags
+          - 'signals': Updated ControlSignals instance
+          - 'trace': Operation trace string
+    """
+    from riscsim.cpu.control_signals import decode_alu_op
+    
+    # Extract opcode from control signals
+    opcode = control_signals.alu_op
+    
+    # Perform ALU operation
+    result, flags_array = alu(operand_a, operand_b, opcode)
+    
+    # Convert flags array to dictionary
+    flags = {
+        'N': flags_array[0],  # Negative
+        'Z': flags_array[1],  # Zero
+        'C': flags_array[2],  # Carry
+        'V': flags_array[3]   # Overflow
+    }
+    
+    # Create trace message
+    op_name = decode_alu_op(opcode)
+    trace = f"ALU {op_name}: N={flags['N']}, Z={flags['Z']}, C={flags['C']}, V={flags['V']}"
+    
+    # Return results with control signals
+    return {
+        'result': result,
+        'flags': flags,
+        'signals': control_signals.copy(),
+        'trace': trace
+    }
 
-   
 
-
+# AI-END
     
 
     
