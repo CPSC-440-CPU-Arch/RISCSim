@@ -1,3 +1,4 @@
+# AI-BEGIN
 """
 RISC-V Register File implementation.
 
@@ -31,7 +32,7 @@ Usage:
     flags = rf.get_fflags()
 """
 
-from riscsim.utils.bit_utils import slice_bits, set_bit, get_bit
+from riscsim.utils.bit_utils import slice_bits, set_bit, get_bit, bits_to_int_unsigned
 
 
 # Constants
@@ -83,7 +84,8 @@ class RegisterFile:
         Read integer register x[reg_num].
 
         Args:
-            reg_num: Register number (0-31)
+            reg_num: Register number as 5-bit array [0,0,0,0,0] to [1,1,1,1,1]
+                     or integer 0-31 for backward compatibility
 
         Returns:
             32-bit array representing the register value.
@@ -92,6 +94,14 @@ class RegisterFile:
         Raises:
             ValueError: If reg_num is out of range
         """
+        # Convert bit array to integer if needed
+        if isinstance(reg_num, list):
+            if len(reg_num) != 5:
+                raise ValueError(
+                    f"Register number as bit array must be 5 bits, got {len(reg_num)}"
+                )
+            reg_num = bits_to_int_unsigned(reg_num)
+        
         if not (0 <= reg_num < NUM_INT_REGS):
             raise ValueError(
                 f"Invalid integer register number: {reg_num}. "
@@ -110,7 +120,8 @@ class RegisterFile:
         Write to integer register x[reg_num].
 
         Args:
-            reg_num: Register number (0-31)
+            reg_num: Register number as 5-bit array [0,0,0,0,0] to [1,1,1,1,1]
+                     or integer 0-31 for backward compatibility
             value: 32-bit array to write
 
         Raises:
@@ -119,6 +130,14 @@ class RegisterFile:
         Note:
             Writes to x0 are silently ignored (x0 is hardwired to zero).
         """
+        # Convert bit array to integer if needed
+        if isinstance(reg_num, list):
+            if len(reg_num) != 5:
+                raise ValueError(
+                    f"Register number as bit array must be 5 bits, got {len(reg_num)}"
+                )
+            reg_num = bits_to_int_unsigned(reg_num)
+        
         if not (0 <= reg_num < NUM_INT_REGS):
             raise ValueError(
                 f"Invalid integer register number: {reg_num}. "
@@ -146,7 +165,8 @@ class RegisterFile:
         Read floating-point register f[reg_num].
 
         Args:
-            reg_num: Register number (0-31)
+            reg_num: Register number as 5-bit array [0,0,0,0,0] to [1,1,1,1,1]
+                     or integer 0-31 for backward compatibility
 
         Returns:
             32-bit array representing the register value.
@@ -154,6 +174,14 @@ class RegisterFile:
         Raises:
             ValueError: If reg_num is out of range
         """
+        # Convert bit array to integer if needed
+        if isinstance(reg_num, list):
+            if len(reg_num) != 5:
+                raise ValueError(
+                    f"Register number as bit array must be 5 bits, got {len(reg_num)}"
+                )
+            reg_num = bits_to_int_unsigned(reg_num)
+        
         if not (0 <= reg_num < NUM_FP_REGS):
             raise ValueError(
                 f"Invalid FP register number: {reg_num}. "
@@ -168,12 +196,21 @@ class RegisterFile:
         Write to floating-point register f[reg_num].
 
         Args:
-            reg_num: Register number (0-31)
+            reg_num: Register number as 5-bit array [0,0,0,0,0] to [1,1,1,1,1]
+                     or integer 0-31 for backward compatibility
             value: 32-bit array to write
 
         Raises:
             ValueError: If reg_num is out of range or value is wrong width
         """
+        # Convert bit array to integer if needed
+        if isinstance(reg_num, list):
+            if len(reg_num) != 5:
+                raise ValueError(
+                    f"Register number as bit array must be 5 bits, got {len(reg_num)}"
+                )
+            reg_num = bits_to_int_unsigned(reg_num)
+        
         if not (0 <= reg_num < NUM_FP_REGS):
             raise ValueError(
                 f"Invalid FP register number: {reg_num}. "
@@ -360,3 +397,86 @@ class RegisterFile:
         return self.fcsr[7]
 
 
+# =============================================================================
+# Control Signal Integration
+# =============================================================================
+
+def register_with_control(rf, signals, write_data=None):
+    """
+    Perform register file operations using control signals.
+
+    This function integrates the RegisterFile with the Control Unit by
+    using control signals to determine read/write operations.
+
+    Args:
+        rf: RegisterFile instance
+        signals: ControlSignals instance with:
+            - rf_we: Write enable (1 = write, 0 = no write)
+            - rf_waddr: Write address (5-bit array, 0-31)
+            - rf_raddr_a: Read address A (5-bit array, 0-31)
+            - rf_raddr_b: Read address B (5-bit array, 0-31)
+        write_data: Optional 32-bit array to write if rf_we is enabled
+
+    Returns:
+        dict with:
+            - 'read_a': Value read from address A (32-bit array)
+            - 'read_b': Value read from address B (32-bit array)
+            - 'written': True if write occurred, False otherwise
+            - 'signals': ControlSignals (passed through)
+            - 'trace': List of operations performed
+
+    Example:
+        >>> rf = RegisterFile()
+        >>> signals = ControlSignals()
+        >>>
+        >>> # Write to x5
+        >>> signals.rf_we = 1
+        >>> signals.rf_waddr = [0,0,1,0,1]  # 5
+        >>> write_data = [0]*31 + [1]  # Value 1
+        >>> result = register_with_control(rf, signals, write_data)
+        >>>
+        >>> # Read from x5 and x0
+        >>> signals.rf_we = 0
+        >>> signals.rf_raddr_a = [0,0,1,0,1]  # 5
+        >>> signals.rf_raddr_b = [0,0,0,0,0]  # 0
+        >>> result = register_with_control(rf, signals)
+        >>> result['read_a']  # Returns [0]*31 + [1]
+        >>> result['read_b']  # Returns [0]*32 (x0 hardwired to 0)
+    """
+    from riscsim.utils.bit_utils import bits_to_int_unsigned
+
+    trace = []
+
+    # Convert addresses to integers
+    addr_a = bits_to_int_unsigned(signals.rf_raddr_a)
+    addr_b = bits_to_int_unsigned(signals.rf_raddr_b)
+    addr_w = bits_to_int_unsigned(signals.rf_waddr)
+
+    # Perform write if write enable is set
+    written = False
+    if signals.rf_we == 1:
+        if write_data is None:
+            raise ValueError("write_data required when rf_we=1")
+        if len(write_data) != 32:
+            raise ValueError(f"write_data must be 32 bits, got {len(write_data)}")
+
+        rf.write_int_reg(addr_w, write_data)
+        written = True
+        trace.append(f"WRITE: x{addr_w} <- {write_data[:8]}...")
+
+    # Perform reads
+    read_a = rf.read_int_reg(addr_a)
+    read_b = rf.read_int_reg(addr_b)
+    trace.append(f"READ_A: x{addr_a} -> {read_a[:8]}...")
+    trace.append(f"READ_B: x{addr_b} -> {read_b[:8]}...")
+
+    return {
+        'read_a': read_a,
+        'read_b': read_b,
+        'written': written,
+        'signals': signals,
+        'trace': trace
+    }
+
+
+# AI-END

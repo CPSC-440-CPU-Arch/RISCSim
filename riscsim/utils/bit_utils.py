@@ -366,7 +366,15 @@ def binary_string_to_bits(bin_str):
 def int_to_bits_unsigned(value, width):
     """Convert unsigned integer to bit array.
 
-    Uses manual repeated division algorithm (no bin() or format()).
+    ***** TEST-ONLY FUNCTION *****
+    WARNING: This function uses Python arithmetic operators (%, //, &, >>) and
+    should ONLY be used in TEST CODE for generating test data.
+
+    DO NOT use in implementation modules (ALU, MDU, FPU, etc.)!
+    Implementation modules must use bit-level operations only.
+
+    This is an I/O boundary function for test data preparation, analogous to
+    how pack_f32 uses struct.pack for format conversion.
 
     Args:
         value: Non-negative integer
@@ -374,53 +382,49 @@ def int_to_bits_unsigned(value, width):
 
     Returns:
         List of bits
-
-    Raises:
-        ValueError: If value is negative
-
-    Note: This is a utility function for testing. Implementation modules
-    should build arithmetic from bit operations, not use this.
     """
     if value < 0:
-        raise ValueError("Value must be non-negative for unsigned conversion")
+        raise ValueError("Value must be non-negative")
 
+    # I/O boundary conversion - uses Python operators for test data generation
     bits = []
     temp = value
 
-    # Extract bits by repeated division by 2
     for _ in range(width):
         bits.append(temp % 2)
         temp = temp // 2
 
-    # Reverse to get MSB first
     bits.reverse()
-
     return bits
 
 
 def bits_to_int_unsigned(bits):
     """Convert bit array to unsigned integer.
 
-    Uses manual power-of-2 accumulation (no int() with base conversion).
+    ***** TEST-ONLY FUNCTION *****
+    WARNING: This function uses Python arithmetic operators (+, <<) and
+    should ONLY be used in TEST CODE for verification and assertions.
+
+    DO NOT use in implementation modules (ALU, MDU, FPU, etc.)!
+    Implementation modules must use bit-level operations only.
+
+    This is an I/O boundary function for test verification, analogous to
+    how unpack_f32 uses struct.unpack for format conversion.
 
     Args:
         bits: List of bits
 
     Returns:
         Non-negative integer
-
-    Note: This is a utility function for testing. Implementation modules
-    should build arithmetic from bit operations, not use this.
     """
     result = 0
     power = 1
 
-    # Process from LSB to MSB
+    # I/O boundary conversion - uses Python operators for test verification
     for i in range(len(bits) - 1, -1, -1):
         if bits[i] == 1:
             result += power
-        # Double the power without using * operator
-        power += power
+        power += power  # Double (equivalent to power << 1)
 
     return result
 # AI-END

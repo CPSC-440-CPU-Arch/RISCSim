@@ -1,3 +1,4 @@
+# AI-BEGIN
 """
 Comprehensive test suite for RISC-V Register File.
 
@@ -586,10 +587,301 @@ def test_invalid_fflags_width():
 
 
 # =============================================================================
+# Control Signal Integration Tests
+# =============================================================================
+
+def test_register_with_control_basic_read():
+    """Test basic register read using control signals."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    # Pre-load some values
+    rf.write_int_reg(5, int_to_bin32(42))
+    rf.write_int_reg(10, int_to_bin32(100))
+
+    # Set up read addresses
+    signals.rf_raddr_a = int_to_bits(5, 5)
+    signals.rf_raddr_b = int_to_bits(10, 5)
+    signals.rf_we = 0  # No write
+
+    result = register_with_control(rf, signals)
+
+    assert bin32_to_int(result['read_a']) == 42
+    assert bin32_to_int(result['read_b']) == 100
+    assert result['written'] == False
+    assert 'READ_A' in result['trace'][0]
+    assert 'READ_B' in result['trace'][1]
+
+
+def test_register_with_control_basic_write():
+    """Test basic register write using control signals."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    # Set up write operation
+    signals.rf_we = 1
+    signals.rf_waddr = int_to_bits(7, 5)
+    signals.rf_raddr_a = int_to_bits(7, 5)  # Read back the written value
+    signals.rf_raddr_b = int_to_bits(0, 5)  # x0
+
+    write_data = int_to_bin32(255)
+    result = register_with_control(rf, signals, write_data)
+
+    assert result['written'] == True
+    assert bin32_to_int(result['read_a']) == 255
+    assert bin32_to_int(result['read_b']) == 0  # x0 always 0
+    assert 'WRITE' in result['trace'][0]
+
+
+def test_register_with_control_x0_hardwired():
+    """Test that x0 remains zero even with write enable."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    # Try to write to x0
+    signals.rf_we = 1
+    signals.rf_waddr = int_to_bits(0, 5)  # x0
+    signals.rf_raddr_a = int_to_bits(0, 5)
+    signals.rf_raddr_b = int_to_bits(0, 5)
+
+    write_data = int_to_bin32(999)
+    result = register_with_control(rf, signals, write_data)
+
+    # x0 should still be 0
+    assert bin32_to_int(result['read_a']) == 0
+    assert bin32_to_int(result['read_b']) == 0
+    assert result['written'] == True  # Write was attempted
+
+
+def test_register_with_control_write_then_read_sequence():
+    """Test write followed by read in sequence."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    # Step 1: Write to x15
+    signals.rf_we = 1
+    signals.rf_waddr = int_to_bits(15, 5)
+    signals.rf_raddr_a = int_to_bits(0, 5)
+    signals.rf_raddr_b = int_to_bits(0, 5)
+
+    result1 = register_with_control(rf, signals, int_to_bin32(777))
+    assert result1['written'] == True
+
+    # Step 2: Read from x15
+    signals.rf_we = 0
+    signals.rf_raddr_a = int_to_bits(15, 5)
+    signals.rf_raddr_b = int_to_bits(0, 5)
+
+    result2 = register_with_control(rf, signals)
+    assert bin32_to_int(result2['read_a']) == 777
+    assert result2['written'] == False
+
+
+def test_register_with_control_multiple_writes():
+    """Test multiple writes to different registers."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    # Write to multiple registers
+    test_values = [(1, 10), (5, 50), (10, 100), (20, 200), (31, 310)]
+
+    signals.rf_we = 1
+    for reg, val in test_values:
+        signals.rf_waddr = int_to_bits(reg, 5)
+        signals.rf_raddr_a = int_to_bits(0, 5)
+        signals.rf_raddr_b = int_to_bits(0, 5)
+        register_with_control(rf, signals, int_to_bin32(val))
+
+    # Verify all values
+    signals.rf_we = 0
+    for reg, expected_val in test_values:
+        signals.rf_raddr_a = int_to_bits(reg, 5)
+        signals.rf_raddr_b = int_to_bits(0, 5)
+        result = register_with_control(rf, signals)
+        assert bin32_to_int(result['read_a']) == expected_val
+
+
+def test_register_with_control_simultaneous_write_read():
+    """Test simultaneous write to one register and read from another."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    # Pre-load x5 with a value
+    rf.write_int_reg(5, int_to_bin32(500))
+
+    # Write to x10, read from x5 and x0
+    signals.rf_we = 1
+    signals.rf_waddr = int_to_bits(10, 5)
+    signals.rf_raddr_a = int_to_bits(5, 5)
+    signals.rf_raddr_b = int_to_bits(0, 5)
+
+    result = register_with_control(rf, signals, int_to_bin32(1000))
+
+    assert result['written'] == True
+    assert bin32_to_int(result['read_a']) == 500  # Read from x5
+    assert bin32_to_int(result['read_b']) == 0    # Read from x0
+    
+    # Verify write took effect
+    assert bin32_to_int(rf.read_int_reg(10)) == 1000
+
+
+def test_register_with_control_signal_preservation():
+    """Test that control signals are preserved in result."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    # Set various control signals
+    signals.rf_we = 1
+    signals.rf_waddr = int_to_bits(8, 5)
+    signals.rf_raddr_a = int_to_bits(3, 5)
+    signals.rf_raddr_b = int_to_bits(12, 5)
+    signals.cycle = 42
+    signals.pc = [0] * 31 + [1]
+
+    result = register_with_control(rf, signals, int_to_bin32(88))
+
+    # Verify signals are preserved
+    assert result['signals'].rf_we == 1
+    assert bits_to_int(result['signals'].rf_waddr) == 8
+    assert bits_to_int(result['signals'].rf_raddr_a) == 3
+    assert bits_to_int(result['signals'].rf_raddr_b) == 12
+    assert result['signals'].cycle == 42
+
+
+def test_register_with_control_trace_output():
+    """Test that trace includes correct operation information."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    # Perform write operation
+    signals.rf_we = 1
+    signals.rf_waddr = int_to_bits(15, 5)
+    signals.rf_raddr_a = int_to_bits(15, 5)
+    signals.rf_raddr_b = int_to_bits(20, 5)
+
+    result = register_with_control(rf, signals, int_to_bin32(999))
+
+    # Check trace contains expected operations
+    trace_str = ' '.join(result['trace'])
+    assert 'WRITE' in trace_str
+    assert 'x15' in trace_str
+    assert 'READ_A' in trace_str
+    assert 'READ_B' in trace_str
+    assert 'x20' in trace_str
+
+
+def test_register_with_control_no_write_data_error():
+    """Test that error is raised when write_data is missing with rf_we=1."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    signals.rf_we = 1
+    signals.rf_waddr = int_to_bits(5, 5)
+
+    with pytest.raises(ValueError, match="write_data required"):
+        register_with_control(rf, signals)  # Missing write_data
+
+
+def test_register_with_control_invalid_write_data_width():
+    """Test that error is raised when write_data has wrong width."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    signals.rf_we = 1
+    signals.rf_waddr = int_to_bits(5, 5)
+
+    with pytest.raises(ValueError, match="must be 32 bits"):
+        register_with_control(rf, signals, [1] * 16)  # Wrong width
+
+
+def test_register_with_control_boundary_addresses():
+    """Test control signal integration with boundary register addresses."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    # Test x0 (lower boundary)
+    signals.rf_we = 0
+    signals.rf_raddr_a = int_to_bits(0, 5)
+    signals.rf_raddr_b = int_to_bits(0, 5)
+    result = register_with_control(rf, signals)
+    assert bin32_to_int(result['read_a']) == 0
+    assert bin32_to_int(result['read_b']) == 0
+
+    # Test x31 (upper boundary)
+    rf.write_int_reg(31, int_to_bin32(0xFFFFFFFF))
+    signals.rf_raddr_a = int_to_bits(31, 5)
+    signals.rf_raddr_b = int_to_bits(31, 5)
+    result = register_with_control(rf, signals)
+    assert bin32_to_int(result['read_a'], signed=False) == 0xFFFFFFFF
+    assert bin32_to_int(result['read_b'], signed=False) == 0xFFFFFFFF
+
+
+def test_register_with_control_full_register_scan():
+    """Test reading all 32 registers using control signals."""
+    from riscsim.cpu.registers import RegisterFile, register_with_control
+    from riscsim.cpu.control_signals import ControlSignals
+
+    rf = RegisterFile()
+    signals = ControlSignals()
+
+    # Write unique values to all registers
+    signals.rf_we = 1
+    for i in range(32):
+        signals.rf_waddr = int_to_bits(i, 5)
+        signals.rf_raddr_a = int_to_bits(0, 5)
+        signals.rf_raddr_b = int_to_bits(0, 5)
+        register_with_control(rf, signals, int_to_bin32(i * 10))
+
+    # Read and verify all registers
+    signals.rf_we = 0
+    for i in range(32):
+        signals.rf_raddr_a = int_to_bits(i, 5)
+        signals.rf_raddr_b = int_to_bits(0, 5)
+        result = register_with_control(rf, signals)
+        expected = 0 if i == 0 else i * 10  # x0 always 0
+        assert bin32_to_int(result['read_a']) == expected
+
+
+# =============================================================================
 # Run standalone tests with output
 # =============================================================================
 
 if __name__ == "__main__":
     print("Running RegisterFile tests...")
     pytest.main([__file__, "-v"])
+
+# AI-END
 

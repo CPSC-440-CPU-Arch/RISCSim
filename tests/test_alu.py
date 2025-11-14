@@ -1,3 +1,4 @@
+# AI-BEGIN
 import pytest
 from riscsim.cpu.alu import alu
 
@@ -190,5 +191,138 @@ def test_alu_nand():
     assert bin32_to_int(result, signed=True) < 0
     assert N == 1  # Negative flag
 
+
+# Phase 2: Control Signal Integration Tests
+
+def test_alu_with_control_add():
+    """Test ALU with control signals for ADD operation."""
+    from riscsim.cpu.alu import alu_with_control
+    from riscsim.cpu.control_signals import ControlSignals, ALU_OP_ADD
+    
+    # Create control signals
+    signals = ControlSignals()
+    signals.alu_op = ALU_OP_ADD
+    
+    # Operands: 5 + 3 = 8
+    a = int_to_bin32(5)
+    b = int_to_bin32(3)
+    
+    result_dict = alu_with_control(a, b, signals)
+    
+    # Verify result
+    assert bin32_to_int(result_dict['result']) == 8
+    
+    # Verify flags
+    assert result_dict['flags']['N'] == 0  # Positive result
+    assert result_dict['flags']['Z'] == 0  # Not zero
+    assert result_dict['flags']['V'] == 0  # No overflow
+    
+    # Verify trace
+    assert 'ALU ADD' in result_dict['trace']
+    assert 'N=0' in result_dict['trace']
+    assert 'Z=0' in result_dict['trace']
+
+
+def test_alu_with_control_subtract():
+    """Test ALU with control signals for SUB operation."""
+    from riscsim.cpu.alu import alu_with_control
+    from riscsim.cpu.control_signals import ControlSignals, ALU_OP_SUB
+    
+    signals = ControlSignals()
+    signals.alu_op = ALU_OP_SUB
+    
+    # Operands: 10 - 3 = 7
+    a = int_to_bin32(10)
+    b = int_to_bin32(3)
+    
+    result_dict = alu_with_control(a, b, signals)
+    
+    assert bin32_to_int(result_dict['result']) == 7
+    assert result_dict['flags']['Z'] == 0
+    assert 'ALU SUB' in result_dict['trace']
+
+
+def test_alu_with_control_zero_flag():
+    """Test that zero flag is set correctly with control signals."""
+    from riscsim.cpu.alu import alu_with_control
+    from riscsim.cpu.control_signals import ControlSignals, ALU_OP_SUB
+    
+    signals = ControlSignals()
+    signals.alu_op = ALU_OP_SUB
+    
+    # 5 - 5 = 0
+    a = int_to_bin32(5)
+    b = int_to_bin32(5)
+    
+    result_dict = alu_with_control(a, b, signals)
+    
+    assert bin32_to_int(result_dict['result']) == 0
+    assert result_dict['flags']['Z'] == 1  # Zero flag should be set
+    assert result_dict['flags']['N'] == 0  # Not negative
+    assert 'Z=1' in result_dict['trace']
+
+
+def test_alu_with_control_overflow():
+    """Test overflow detection with control signals."""
+    from riscsim.cpu.alu import alu_with_control
+    from riscsim.cpu.control_signals import ControlSignals, ALU_OP_ADD
+    
+    signals = ControlSignals()
+    signals.alu_op = ALU_OP_ADD
+    
+    # INT_MAX + 1 causes overflow
+    a = int_to_bin32(2147483647)  # 0x7FFFFFFF
+    b = int_to_bin32(1)
+    
+    result_dict = alu_with_control(a, b, signals)
+    
+    assert result_dict['flags']['V'] == 1  # Overflow should be set
+    assert result_dict['flags']['N'] == 1  # Result is negative
+    assert 'V=1' in result_dict['trace']
+
+
+def test_alu_with_control_and_operation():
+    """Test AND operation with control signals."""
+    from riscsim.cpu.alu import alu_with_control
+    from riscsim.cpu.control_signals import ControlSignals, ALU_OP_AND
+    
+    signals = ControlSignals()
+    signals.alu_op = ALU_OP_AND
+    
+    # 0xFF00FF00 & 0x00FF00FF = 0x00000000
+    a = [1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0]
+    b = [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1]
+    
+    result_dict = alu_with_control(a, b, signals)
+    
+    # Result should be all zeros
+    assert all(bit == 0 for bit in result_dict['result'])
+    assert result_dict['flags']['Z'] == 1
+    assert 'ALU AND' in result_dict['trace']
+
+
+def test_alu_with_control_signals_preserved():
+    """Test that control signals are preserved in result."""
+    from riscsim.cpu.alu import alu_with_control
+    from riscsim.cpu.control_signals import ControlSignals, ALU_OP_ADD
+    
+    signals = ControlSignals()
+    signals.alu_op = ALU_OP_ADD
+    signals.cycle = 42
+    signals.rf_waddr = [0, 0, 0, 1, 1]  # r3
+    
+    a = int_to_bin32(5)
+    b = int_to_bin32(3)
+    
+    result_dict = alu_with_control(a, b, signals)
+    
+    # Verify signals are preserved
+    returned_signals = result_dict['signals']
+    assert returned_signals.alu_op == ALU_OP_ADD
+    assert returned_signals.cycle == 42
+    assert returned_signals.rf_waddr == [0, 0, 0, 1, 1]
+
+
+# AI-END
 
 #if __name__ == "__main__":

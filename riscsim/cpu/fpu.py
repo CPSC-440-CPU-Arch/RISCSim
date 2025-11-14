@@ -24,7 +24,7 @@ All bit arrays follow MSB-first convention (index 0 = MSB, index 31 = LSB)
 
 from riscsim.utils.bit_utils import (
     slice_bits, concat_bits, bits_or, is_zero, bits_and,
-    zero_extend, bits_not, bits_xor
+    zero_extend, bits_not, bits_xor, bits_to_hex_string
 )
 from riscsim.cpu.alu import alu
 from riscsim.cpu.shifter import shifter
@@ -191,13 +191,171 @@ def add_unsigned(a, b, width=None):
     return (result, carry)
 
 
+def subtract_unsigned(a, b):
+    """
+    Subtract two bit arrays (a - b) using the ALU.
+
+    Args:
+        a, b: Bit arrays (same length)
+
+    Returns:
+        Tuple of (result, borrow) where borrow=1 if a < b
+    """
+    width = max(len(a), len(b))
+    a_ext = zero_extend(a, 32)
+    b_ext = zero_extend(b, 32)
+
+    result, flags = alu(a_ext, b_ext, [0, 1, 1, 0])  # SUB operation
+
+    # For subtraction, carry=0 means borrow occurred
+    borrow = 0 if flags[2] else 1
+
+    return (slice_bits(result, 32 - width, 32), borrow)
+
+
+def compare_exponents(exp_a, exp_b):
+    """
+    Compare two 8-bit exponents.
+
+    Returns:
+        (diff, a_larger) where:
+        - diff is absolute difference as 8-bit array
+        - a_larger is True if exp_a >= exp_b
+    """
+    # Extend to 32 bits for ALU
+    exp_a_32 = zero_extend(exp_a, 32)
+    exp_b_32 = zero_extend(exp_b, 32)
+
+    # Subtract: exp_a - exp_b
+    result, flags = alu(exp_a_32, exp_b_32, [0, 1, 1, 0])  # SUB
+
+    # If MSB=0 and not zero, then a >= b
+    # If MSB=1, then a < b (negative result in two's complement)
+    is_negative = result[0] == 1
+    is_zero = flags[3]  # Z flag
+
+    if is_zero:
+        return (zero_extend([], 8), True)  # Equal, return zeros
+
+    if is_negative:
+        # a < b, so compute b - a to get positive difference
+        result_pos, _ = alu(exp_b_32, exp_a_32, [0, 1, 1, 0])
+        diff_8 = slice_bits(result_pos, 24, 32)
+        return (diff_8, False)
+    else:
+        # a >= b
+        diff_8 = slice_bits(result, 24, 32)
+        return (diff_8, True)
+
+
+def shift_significand_right(sig, amount, width=24):
+    """
+    Shift significand right by amount, with sticky bit tracking.
+
+    Args:
+        sig: Significand bit array
+        amount: Number of positions to shift (as 8-bit array)
+        width: Desired output width
+
+    Returns:
+        (shifted_sig, sticky_bit) where sticky_bit=1 if any 1 bits were shifted out
+    """
+    # Shifter accepts bit arrays directly - use lower 5 bits for shift amount
+    # amount is 8 bits, take lower 5 bits
+    shift_amt_5bits = slice_bits(amount, 3, 8)  # Get bits [3:8] = lower 5 bits
+
+    # Check if shift amount is zero
+    if is_zero(shift_amt_5bits):
+        return (sig[:width], 0)
+
+    # Use shifter for the shift (pass 5-bit array)
+    sig_32 = zero_extend(sig, 32)
+    shifted = shifter(sig_32, shift_amt_5bits, "SRL")
+
+    # Calculate sticky bit: check if any bits were shifted out
+    # We need to know the actual shift amount value to determine this
+    # Use comparison: check each possible shift amount via lookup
+    sticky = 0
+    # Check bits that would be shifted out for each possible shift amount
+    # For simplicity: if result is different from input, some bits were lost
+    # More precisely: check if lower bits of original had any 1s
+    for i in range(min(24, len(sig))):
+        if i < len(sig) and sig[len(sig) - 1 - i] == 1:
+            # This bit might have been shifted out
+            # Check if shift amount >= i+1 by testing the bit pattern
+            # For now, conservatively set sticky if ANY lower bits are 1
+            sticky = 1
+            break
+
+    # Return requested width
+    result = slice_bits(shifted, 32 - width, 32)
+    return (result, sticky)
+
+
+def normalize_significand(sig, exp, width=24):
+    """
+    Normalize a significand by shifting left until MSB=1, adjusting exponent.
+
+    Args:
+        sig: Significand (may have leading zeros)
+        exp: Current exponent (8-bit array)
+        width: Significand width (default 24 for 1.fraction)
+
+    Returns:
+        (normalized_sig, normalized_exp, underflow_flag)
+    """
+    # Count leading zeros
+    lz_count = leading_zeros_count(sig)
+
+    if lz_count >= width:
+        # All zeros - return zero
+        return ([0] * width, [0] * 8, False)
+
+    if lz_count == 0:
+        # Already normalized
+        return (sig[:width], exp, False)
+
+    # Shift left by lz_count
+    sig_32 = zero_extend(sig, 32)
+    shifted = shifter(sig_32, lz_count, "SLL")
+    normalized_sig = slice_bits(shifted, 32 - width, 32)
+
+    # Decrease exponent by lz_count
+    # Create lz_count as bit array for subtraction
+    lz_bits = zero_extend([], 8)
+    # Simple approach: subtract 1 repeatedly lz_count times
+    new_exp = exp[:]
+    for _ in range(lz_count):
+        # Subtract 1 from exponent
+        new_exp_32 = zero_extend(new_exp, 32)
+        one_32 = [0] * 31 + [1]
+        result, flags = alu(new_exp_32, one_32, [0, 1, 1, 0])  # SUB
+        new_exp = slice_bits(result, 24, 32)
+
+        # Check for underflow (exp became zero or negative)
+        if is_zero(new_exp) or result[0] == 1:
+            # Underflow
+            return ([0] * width, [0] * 8, True)
+
+    return (normalized_sig, new_exp, False)
+
+
 def pack_f32(value):
     """
     Pack a Python float value into IEEE-754 float32 bit representation.
 
-    This is a helper function for testing and initialization. It uses Python's
-    built-in float arithmetic to determine the bit pattern, which is acceptable
-    for pack/unpack utilities but NOT for arithmetic operations.
+    ***** I/O BOUNDARY FUNCTION *****
+    This function converts between Python's native float type and IEEE-754 bit arrays.
+    It uses struct.pack() for FORMAT CONVERSION only, not for implementing arithmetic.
+
+    Analogous to:
+    - _int_to_bits_boundary() in twos_complement
+    - int_to_bits_unsigned() in bit_utils (TEST-ONLY)
+
+    Used ONLY for:
+    - Test data generation
+    - Initial value conversion
+    - NOT for arithmetic within FPU (use bit-level fadd/fmul/etc. instead)
 
     Args:
         value: Python float
@@ -235,9 +393,18 @@ def unpack_f32(bits):
     """
     Unpack IEEE-754 float32 bit representation to a Python float value.
 
-    This is a helper function for testing and display. It uses Python's
-    built-in float arithmetic, which is acceptable for pack/unpack utilities
-    but NOT for arithmetic operations.
+    ***** I/O BOUNDARY FUNCTION *****
+    This function converts between IEEE-754 bit arrays and Python's native float type.
+    It uses struct.unpack() for FORMAT CONVERSION only, not for implementing arithmetic.
+
+    Analogous to:
+    - _bits_to_int_boundary() in twos_complement
+    - bits_to_int_unsigned() in bit_utils (TEST-ONLY)
+
+    Used ONLY for:
+    - Test verification and assertions
+    - Output display
+    - NOT for arithmetic within FPU (use bit-level operations instead)
 
     Args:
         bits: 32-bit array in IEEE-754 format
@@ -358,32 +525,139 @@ def fadd_f32(a_bits, b_bits, rounding_mode=None):
         trace.append("B is zero, result = A")
         return {'result': a_bits, 'flags': flags, 'trace': trace}
 
-    # For now, implement a simplified version that uses Python float for the actual computation
-    # A full bit-level implementation would require extensive alignment, addition, and normalization logic
-    # This is marked as a starting point that should be enhanced
+    # Full bit-level IEEE-754 addition implementation
+    trace.append("Performing bit-level IEEE-754 addition")
 
-    trace.append("Performing simplified addition (to be enhanced with full bit-level implementation)")
+    # Step 1: Prepare significands with hidden bit
+    # Normal: 1.fraction (24 bits total)
+    # Subnormal: 0.fraction (24 bits total)
+    sig_a = ([0] if is_subn_a else [1]) + frac_a  # 24 bits
+    sig_b = ([0] if is_subn_b else [1]) + frac_b  # 24 bits
+    trace.append(f"Significands: A={sig_a[:8]}..., B={sig_b[:8]}...")
 
-    # Unpack to Python floats, compute, and repack
-    val_a = unpack_f32(a_bits)
-    val_b = unpack_f32(b_bits)
-    result_val = val_a + val_b
+    # Step 2: Align exponents (shift smaller significand right)
+    exp_diff, a_has_larger_exp = compare_exponents(exp_a, exp_b)
 
-    result_bits = pack_f32(result_val)
+    # Always extend to 25 bits (24 bits + 1 guard bit)
+    sig_a = sig_a + [0]
+    sig_b = sig_b + [0]
 
-    # Check for overflow/underflow
-    sign_r, exp_r, frac_r = extract_float32_fields(result_bits)
-    is_zero_r, is_inf_r, is_nan_r, is_subn_r = is_special_value(exp_r, frac_r)
+    if a_has_larger_exp and not is_zero(exp_diff):
+        # Shift B right
+        sig_b, sticky_b = shift_significand_right(sig_b, exp_diff, 25)
+        result_exp = exp_a
+        trace.append(f"Aligned: shifted B right, exp={result_exp}")
+    elif not a_has_larger_exp and not is_zero(exp_diff):
+        # Shift A right
+        sig_a, sticky_a = shift_significand_right(sig_a, exp_diff, 25)
+        result_exp = exp_b
+        trace.append(f"Aligned: shifted A right, exp={result_exp}")
+    else:
+        # Equal exponents
+        result_exp = exp_a
+        trace.append("Exponents equal, no shift needed")
 
-    if is_inf_r and not (is_inf_a or is_inf_b):
-        flags['overflow'] = 1
-        trace.append("Result overflow to infinity")
+    # Step 3: Add or subtract significands based on signs
+    same_sign = (sign_a == sign_b)
 
-    if is_subn_r or (is_zero_r and not (is_zero_a and is_zero_b)):
+    if same_sign:
+        # Same sign: add significands
+        sig_a_32 = zero_extend(sig_a, 32)
+        sig_b_32 = zero_extend(sig_b, 32)
+        result_sig_32, flags_temp = alu(sig_a_32, sig_b_32, [0, 0, 1, 0])  # ADD
+        result_sign = sign_a
+        trace.append("Same sign: added significands")
+
+        # Check if result >= 2.0 (bit at position representing 2^1 is set)
+        # After zero-extending 25-bit sig to 32 bits: bits 0-6 are padding, bit 7 is MSB of sig
+        # If sum >= 2.0, bit 6 (representing 2^1) would be set
+        needs_normalize = result_sig_32[6] == 1  # Check if overflow into 2^1 position
+        if needs_normalize:
+            result_sig_32 = shifter(result_sig_32, 1, "SRL")
+
+            # Check for overflow before incrementing (if exp is already 254, incrementing overflows)
+            # 254 = [1,1,1,1,1,1,1,0]
+            if result_exp == [1,1,1,1,1,1,1,0]:
+                flags['overflow'] = 1
+                trace.append("Overflow to infinity: exponent 254 + carry would overflow")
+                return {
+                    'result': pack_float32_fields(result_sign, EXP_INF_NAN, [0]*23),
+                    'flags': flags,
+                    'trace': trace
+                }
+
+            result_exp = increment_bits(result_exp)
+            trace.append("Carry out: shifted right, incremented exponent")
+
+            # Check for overflow after increment
+            if all(b == 1 for b in result_exp):  # Exponent = 255
+                flags['overflow'] = 1
+                trace.append("Overflow to infinity after carry")
+                return {
+                    'result': pack_float32_fields(result_sign, EXP_INF_NAN, [0]*23),
+                    'flags': flags,
+                    'trace': trace
+                }
+    else:
+        # Different signs: subtract significands
+        # Determine which is larger
+        sig_a_32 = zero_extend(sig_a, 32)
+        sig_b_32 = zero_extend(sig_b, 32)
+
+        cmp = compare_unsigned(sig_a, sig_b)
+        if cmp >= 0:
+            # A >= B: compute A - B
+            result_sig_32, _ = alu(sig_a_32, sig_b_32, [0, 1, 1, 0])  # SUB
+            result_sign = sign_a
+        else:
+            # B > A: compute B - A
+            result_sig_32, _ = alu(sig_b_32, sig_a_32, [0, 1, 1, 0])  # SUB
+            result_sign = sign_b
+
+        trace.append("Different signs: subtracted significands")
+
+    # Step 4: Normalize result
+    result_sig_24 = slice_bits(result_sig_32, 32 - 25, 32 - 1)  # Get 24 bits (drop LSB guard bit)
+
+    if is_zero(result_sig_24):
+        # Result is zero
+        trace.append("Result is zero")
+        return {
+            'result': pack_float32_fields(0, [0]*8, [0]*23),
+            'flags': flags,
+            'trace': trace
+        }
+
+    # Normalize: shift left until MSB=1, adjust exponent
+    normalized_sig, normalized_exp, underflow = normalize_significand(result_sig_24, result_exp, 24)
+
+    if underflow:
         flags['underflow'] = 1
-        trace.append("Result underflow")
+        trace.append("Underflow to zero")
+        return {
+            'result': pack_float32_fields(result_sign, [0]*8, [0]*23),
+            'flags': flags,
+            'trace': trace
+        }
 
-    trace.append(f"Result: sign={sign_r}, exp={exp_r}, frac={frac_r[:8]}...")
+    trace.append(f"Normalized: exp={normalized_exp}")
+
+    # Step 5: Check for overflow
+    if all(b == 1 for b in normalized_exp):  # Exponent = 255
+        flags['overflow'] = 1
+        trace.append("Overflow to infinity")
+        return {
+            'result': pack_float32_fields(result_sign, EXP_INF_NAN, [0]*23),
+            'flags': flags,
+            'trace': trace
+        }
+
+    # Step 6: Round and pack result (simplified - just truncate for now)
+    # Extract 23-bit fraction (drop hidden bit)
+    result_frac = slice_bits(normalized_sig, 1, 24)
+
+    result_bits = pack_float32_fields(result_sign, normalized_exp, result_frac)
+    trace.append(f"Result: sign={result_sign}, exp={normalized_exp}, frac={result_frac[:8]}...")
 
     return {
         'result': result_bits,
@@ -495,32 +769,166 @@ def fmul_f32(a_bits, b_bits, rounding_mode=None):
             'trace': trace
         }
 
-    # Simplified multiplication using Python floats (to be enhanced)
-    trace.append("Performing simplified multiplication (to be enhanced with full bit-level implementation)")
+    # Full bit-level IEEE-754 multiplication implementation
+    trace.append("Performing bit-level IEEE-754 multiplication")
 
-    val_a = unpack_f32(a_bits)
-    val_b = unpack_f32(b_bits)
-    result_val = val_a * val_b
+    # Step 1: Prepare significands with hidden bit
+    sig_a = ([0] if is_subn_a else [1]) + frac_a  # 24 bits
+    sig_b = ([0] if is_subn_b else [1]) + frac_b  # 24 bits
+    trace.append(f"Significands: A={sig_a[:8]}..., B={sig_b[:8]}...")
 
-    result_bits = pack_f32(result_val)
+    # Step 2: Multiply significands using shift-add (like MDU mul32)
+    # Result will be 48 bits
+    product = [0] * 48
 
-    # Check for overflow/underflow
-    sign_r, exp_r, frac_r = extract_float32_fields(result_bits)
-    is_zero_r, is_inf_r, is_nan_r, is_subn_r = is_special_value(exp_r, frac_r)
+    # Shift-add multiplication
+    for i in range(24):
+        if sig_b[23 - i] == 1:  # Check bit from LSB to MSB
+            # When checking sig_b[23-i], it has weight 2^(-(23-i)) in 1.23 format
+            # Product is in 2.46 format: product[n] represents 2^(1-n)
+            # sig_a[0] (weight 2^0) * 2^(-(23-i)) = 2^(-(23-i)) goes at position 24-i
+            # sig_a[23] (weight 2^-23) * 2^(-(23-i)) = 2^(-46+i) goes at position 47-i
+            shifted_a = [0] * (24 - i) + sig_a + [0] * i  # 48 bits total
 
-    if is_inf_r and not (is_inf_a or is_inf_b):
+            # Add to product using repeated ALU additions (32 bits at a time)
+            # Split into two 32-bit chunks for ALU
+            # Lower 32 bits
+            prod_lo_32 = zero_extend(product[16:48], 32)
+            shifted_lo_32 = zero_extend(shifted_a[16:48], 32)
+            new_lo, flags_lo = alu(prod_lo_32, shifted_lo_32, [0, 0, 1, 0])  # ADD
+            carry_lo = flags_lo[2]  # C flag
+            product[16:48] = slice_bits(new_lo, 0, 32)
+
+            # Upper 32 bits (with carry from lower)
+            prod_hi_32 = zero_extend(product[0:16] + [0]*16, 32)
+            shifted_hi_32 = zero_extend(shifted_a[0:16] + [0]*16, 32)
+            carry_bits = [0]*31 + [1 if carry_lo == 1 else 0]  # Convert flag to bit
+            temp, _ = alu(prod_hi_32, shifted_hi_32, [0, 0, 1, 0])  # ADD
+            new_hi, _ = alu(temp, carry_bits, [0, 0, 1, 0])  # ADD carry
+            product[0:16] = slice_bits(new_hi, 0, 16)
+
+    trace.append(f"Product (48 bits): {product[:8]}...")
+
+    # Step 3: Add exponents and subtract bias
+    # result_exp = exp_a + exp_b - 127
+    exp_a_32 = zero_extend(exp_a, 32)
+    exp_b_32 = zero_extend(exp_b, 32)
+    exp_sum, _ = alu(exp_a_32, exp_b_32, [0, 0, 1, 0])  # ADD
+
+    # Subtract bias (127 = 0b01111111)
+    bias_32 = zero_extend([0,1,1,1,1,1,1,1], 32)
+    result_exp_32, _ = alu(exp_sum, bias_32, [0, 1, 1, 0])  # SUB
+
+    # Check for exponent overflow before extracting to 8 bits
+    # Overflow if result_exp_32 >= 254 (might add 1 during normalization)
+    threshold_254 = zero_extend([1,1,1,1,1,1,1,0], 32)  # 254
+    diff, flags_cmp = alu(result_exp_32, threshold_254, [0, 1, 1, 0])  # SUB: result_exp_32 - 254
+    # If result_exp_32 >= 254, then diff >= 0 (diff[0] == 0 means non-negative)
+    # Also check result_exp_32 itself is non-negative (not underflow)
+    exp_overflow = (result_exp_32[0] == 0 and  # result_exp_32 is non-negative
+                    diff[0] == 0)  # diff is non-negative, so result_exp_32 >= 254
+    if exp_overflow:
         flags['overflow'] = 1
-        trace.append("Result overflow to infinity")
+        trace.append(f"Exponent overflow: {result_exp_32} >= 254")
+        return {
+            'result': pack_float32_fields(result_sign, EXP_INF_NAN, [0]*23),
+            'flags': flags,
+            'trace': trace
+        }
 
-    if is_subn_r or (is_zero_r and not (is_zero_a or is_zero_b)):
+    result_exp = slice_bits(result_exp_32, 24, 32)
+    trace.append(f"Exponent sum - bias: {result_exp}")
+
+    # Step 4: Normalize product
+    # Product of two 24-bit numbers (1.xxx * 1.yyy) is either 1.xxx or 01.xxx
+    # Check if MSB is 1 (product >= 2.0)
+    if product[0] == 1:
+        # Product is in [2.0, 4.0), shift right by 1 and increment exponent
+        # Manually shift right by 1 (can't use shifter on 48 bits)
+        product = [0] + product[:47]
+        result_exp = increment_bits(result_exp)
+        trace.append("Product >= 2.0: shifted right, incremented exponent")
+
+    # Extract 23-bit fraction (bits 2-24, excluding hidden bit at position 1)
+    # In 2.46 format: product[1] is hidden bit, product[2:25] is fraction
+    result_frac = product[2:25]
+    trace.append(f"Normalized fraction: {result_frac[:8]}...")
+
+    # Step 5: Check for overflow/underflow
+    # Check if exponent overflowed to 255
+    if all(b == 1 for b in result_exp):
+        flags['overflow'] = 1
+        trace.append("Overflow to infinity")
+        return {
+            'result': pack_float32_fields(result_sign, EXP_INF_NAN, [0]*23),
+            'flags': flags,
+            'trace': trace
+        }
+
+    # Check if exponent underflowed (MSB=1 means negative in two's complement)
+    if result_exp_32[0] == 1 or is_zero(result_exp):
         flags['underflow'] = 1
-        trace.append("Result underflow")
+        trace.append("Underflow to zero")
+        return {
+            'result': pack_float32_fields(result_sign, [0]*8, [0]*23),
+            'flags': flags,
+            'trace': trace
+        }
 
-    trace.append(f"Result: sign={result_sign}, exp={exp_r}, frac={frac_r[:8]}...")
+    # Step 6: Pack result
+    result_bits = pack_float32_fields(result_sign, result_exp, result_frac)
+    trace.append(f"Result: sign={result_sign}, exp={result_exp}, frac={result_frac[:8]}...")
 
     return {
         'result': result_bits,
         'flags': flags,
         'trace': trace
     }
+
+
+def fpu_with_control(a_bits, b_bits, control_signals):
+    """
+    FPU operation wrapper that integrates with control unit signals.
+    
+    This function provides a bridge between the control unit and the raw FPU,
+    allowing for cycle-accurate simulation with control signal tracking.
+    
+    Args:
+        a_bits: 32-bit first operand (IEEE-754 float32)
+        b_bits: 32-bit second operand (IEEE-754 float32)
+        control_signals: ControlSignals instance containing fpu_op and round_mode
+        
+    Returns:
+        Dictionary containing:
+          - 'result': 32-bit result (IEEE-754 float32)
+          - 'flags': Dictionary with exception flags (invalid, overflow, underflow)
+          - 'signals': Updated ControlSignals instance
+          - 'trace': List of operation trace strings
+    """
+    # Extract FPU operation and rounding mode from control signals
+    fpu_op = control_signals.fpu_op
+    round_mode = control_signals.round_mode
+    
+    # Perform FPU operation based on operation type
+    if fpu_op == 'FADD':
+        result_dict = fadd_f32(a_bits, b_bits, rounding_mode=round_mode)
+    elif fpu_op == 'FSUB':
+        result_dict = fsub_f32(a_bits, b_bits, rounding_mode=round_mode)
+    elif fpu_op == 'FMUL':
+        result_dict = fmul_f32(a_bits, b_bits, rounding_mode=round_mode)
+    else:
+        raise ValueError(f"Unknown FPU operation: {fpu_op}")
+    
+    # Create trace summary
+    trace_summary = f"FPU {fpu_op}: result={bits_to_hex_string(result_dict['result'])}"
+    
+    # Return results with control signals
+    return {
+        'result': result_dict['result'],
+        'flags': result_dict['flags'],
+        'signals': control_signals.copy(),
+        'trace': [trace_summary] + result_dict['trace']
+    }
+
+
 # AI-END

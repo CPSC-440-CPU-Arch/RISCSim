@@ -1,3 +1,4 @@
+# AI-BEGIN
 """
 Test suite for RISC-V Barrel Shifter
 
@@ -333,3 +334,125 @@ class TestComprehensive:
         # Then SRL by 8
         result = shifter(result, 8, "SRL")
         assert bin32_to_hex(result) == "0x00234567"
+
+
+# Phase 2: Control Signal Integration Tests
+
+def test_shifter_with_control_sll():
+    """Test shifter with control signals for SLL operation."""
+    from riscsim.cpu.shifter import shifter_with_control
+    from riscsim.cpu.control_signals import ControlSignals, SH_OP_SLL
+    
+    signals = ControlSignals()
+    signals.sh_op = SH_OP_SLL
+    signals.sh_amount = [0, 0, 1, 0, 0]  # 4
+    
+    operand = int_to_bin32(0x12345678)
+    
+    result_dict = shifter_with_control(operand, signals)
+    
+    # Verify result
+    assert bin32_to_hex(result_dict['result']) == "0x23456780"
+    
+    # Verify trace
+    assert 'Shifter SLL' in result_dict['trace']
+    assert 'by 4' in result_dict['trace']
+
+
+def test_shifter_with_control_srl():
+    """Test shifter with control signals for SRL operation."""
+    from riscsim.cpu.shifter import shifter_with_control
+    from riscsim.cpu.control_signals import ControlSignals, SH_OP_SRL
+    
+    signals = ControlSignals()
+    signals.sh_op = SH_OP_SRL
+    signals.sh_amount = [0, 1, 0, 0, 0]  # 8
+    
+    operand = int_to_bin32(0x12345678)
+    
+    result_dict = shifter_with_control(operand, signals)
+    
+    assert bin32_to_hex(result_dict['result']) == "0x00123456"
+    assert 'Shifter SRL' in result_dict['trace']
+    assert 'by 8' in result_dict['trace']
+
+
+def test_shifter_with_control_sra():
+    """Test shifter with control signals for SRA operation."""
+    from riscsim.cpu.shifter import shifter_with_control
+    from riscsim.cpu.control_signals import ControlSignals, SH_OP_SRA
+    
+    signals = ControlSignals()
+    signals.sh_op = SH_OP_SRA
+    signals.sh_amount = [0, 0, 1, 0, 0]  # 4
+    
+    # Negative number
+    operand = int_to_bin32(0x80000000)
+    
+    result_dict = shifter_with_control(operand, signals)
+    
+    # Should preserve sign bit
+    assert bin32_to_hex(result_dict['result']) == "0xF8000000"
+    assert 'Shifter SRA' in result_dict['trace']
+
+
+def test_shifter_with_control_zero_shift():
+    """Test shifter with zero shift amount."""
+    from riscsim.cpu.shifter import shifter_with_control
+    from riscsim.cpu.control_signals import ControlSignals, SH_OP_SLL
+    
+    signals = ControlSignals()
+    signals.sh_op = SH_OP_SLL
+    signals.sh_amount = [0, 0, 0, 0, 0]  # 0
+    
+    operand = int_to_bin32(0x12345678)
+    
+    result_dict = shifter_with_control(operand, signals)
+    
+    # Should be unchanged
+    assert bin32_to_hex(result_dict['result']) == "0x12345678"
+    assert 'by 0' in result_dict['trace']
+
+
+def test_shifter_with_control_max_shift():
+    """Test shifter with maximum shift amount."""
+    from riscsim.cpu.shifter import shifter_with_control
+    from riscsim.cpu.control_signals import ControlSignals, SH_OP_SRL
+    
+    signals = ControlSignals()
+    signals.sh_op = SH_OP_SRL
+    signals.sh_amount = [1, 1, 1, 1, 1]  # 31
+    
+    operand = int_to_bin32(0xFFFFFFFF)
+    
+    result_dict = shifter_with_control(operand, signals)
+    
+    # Should shift almost everything out
+    assert bin32_to_int(result_dict['result']) == 1
+    assert 'by 31' in result_dict['trace']
+
+
+def test_shifter_with_control_signals_preserved():
+    """Test that control signals are preserved in result."""
+    from riscsim.cpu.shifter import shifter_with_control
+    from riscsim.cpu.control_signals import ControlSignals, SH_OP_SLL
+    
+    signals = ControlSignals()
+    signals.sh_op = SH_OP_SLL
+    signals.sh_amount = [0, 0, 0, 1, 0]  # 2
+    signals.cycle = 99
+    signals.rf_waddr = [0, 0, 1, 0, 0]  # r4
+    
+    operand = int_to_bin32(0x00000001)
+    
+    result_dict = shifter_with_control(operand, signals)
+    
+    # Verify signals are preserved
+    returned_signals = result_dict['signals']
+    assert returned_signals.sh_op == SH_OP_SLL
+    assert returned_signals.sh_amount == [0, 0, 0, 1, 0]
+    assert returned_signals.cycle == 99
+    assert returned_signals.rf_waddr == [0, 0, 1, 0, 0]
+
+
+# AI-END
