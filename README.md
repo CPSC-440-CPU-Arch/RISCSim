@@ -1,65 +1,125 @@
-# RISCSim - RISC-V Numeric Operations Simulator
+# RISCSim - RISC-V CPU Simulator
 
-A hardware-accurate simulator for RISC-V numeric operations, implementing two's-complement arithmetic, integer multiply/divide (M extension), and IEEE-754 floating-point operations (F extension).
+A complete, hardware-accurate **single-cycle RISC-V CPU simulator** implementing the RV32I base instruction set with extensions for multiply/divide (M) and floating-point (F) operations.
 
 ## Overview
 
-This project is a **midterm alternative project** that will later be merged into a full RISC-V CPU simulator. It focuses on bit-level implementations of numeric operations without using host language numeric operators.
+RISCSim is a **fully functional RISC-V CPU simulator** that executes real RISC-V machine code loaded from `.hex` files. It implements a single-cycle datapath with all five pipeline stages (fetch, decode, execute, memory, writeback) executing in one cycle. The simulator is built entirely from bit-level primitives without using host arithmetic operators, making it a true hardware simulation.
 
 ## Features
 
-### Implemented
-- **Two's-Complement Toolkit** (32-bit RV32)
-  - Encode/decode with overflow detection
-  - Sign-extend and zero-extend helpers
+### Complete CPU Implementation ✅
+- ✅ **Single-Cycle Datapath**: Five-stage execution in one cycle
+- ✅ **Instruction Memory**: 64KB program storage, loads from .hex files
+- ✅ **Data Memory**: 64KB data storage with word/byte access
+- ✅ **Register File**: 32 integer registers (x0 hardwired to zero)
+- ✅ **Program Counter**: PC management with branch/jump support
+- ✅ **Control Unit**: FSM-based control signal generation
 
-- **RV32I Integer Operations**
-  - ADD, SUB with ALU flags (N, Z, C, V)
-  - Bit-level full adder implementation
+### Instruction Set Support (23 Instructions) ✅
+- ✅ **Arithmetic**: ADD, SUB, ADDI
+- ✅ **Logical**: AND, OR, XOR, ANDI, ORI, XORI
+- ✅ **Shifts**: SLL, SRL, SRA, SLLI, SRLI, SRAI
+- ✅ **Memory**: LW, SW (word-aligned access)
+- ✅ **Branches**: BEQ, BNE (conditional branches)
+- ✅ **Jumps**: JAL, JALR (with return address)
+- ✅ **Upper Immediate**: LUI, AUIPC
 
-- **RV32M Integer Multiply/Divide**
-  - MUL, MULH, MULHU, MULHSU (shift-add algorithm with traces)
-  - DIV, DIVU, REM, REMU (restoring division with traces)
-  - RISC-V edge-case semantics (div-by-zero, INT_MIN/-1)
+### Hardware Components ✅
+- ✅ **ALU**: 32-bit operations using 1-bit full adders (ADD, SUB, AND, OR, XOR)
+- ✅ **Barrel Shifter**: 5-stage shifter (SLL, SRL, SRA)
+- ✅ **MDU**: Multiply/Divide Unit with shift-add/restoring division algorithms
+- ✅ **FPU**: IEEE-754 Float32 operations (FADD, FSUB, FMUL)
+- ✅ **Instruction Decoder**: All 6 RISC-V formats (R, I, S, B, U, J)
+- ✅ **Memory Unit**: Harvard architecture with separate I/D memory
+- ✅ **Fetch Unit**: PC management with branch/jump handling
 
-- **IEEE-754 Float32 (F Extension)**
-  - Pack/unpack with special values (±0, ±∞, NaN)
-  - FADD, FSUB, FMUL with RoundTiesToEven
-  - Exception flags (overflow, underflow, invalid)
+### Test Programs Included ✅
+- ✅ `test_base.hex`: Provided reference program (11 instructions)
+- ✅ `test_arithmetic.hex`: Arithmetic operations with overflow (19 instructions)
+- ✅ `test_logical.hex`: Logical operations and bit patterns (25 instructions)
+- ✅ `test_shifts.hex`: All shift variants (30 instructions)
+- ✅ `test_memory.hex`: Memory operations with offsets (39 instructions)
+- ✅ `test_branches.hex`: Branches, loops, control flow (41 instructions)
+- ✅ `test_jumps.hex`: Jumps and returns (33 instructions)
 
-### Hardware Components
-- **ALU**: Full-adder chains, bit-level operations
-- **Shifter**: Barrel-shifter implementation (SLL/SRL/SRA)
-- **MDU**: Multiply/Divide unit with internal registers
-- **FPU**: Float32 unit with normalization and rounding
-- **Registers**: 32 integer registers (x0-x31), 32 FP registers (f0-f31), FCSR
+## Quick Start
+
+```python
+from riscsim.cpu.cpu import CPU
+
+# Create CPU and load program
+cpu = CPU()
+cpu.load_program('tests/programs/test_base.hex')
+
+# Run program
+result = cpu.run(max_cycles=1000)
+
+# Check results
+print(f"Executed {result.instruction_count} instructions")
+print(f"Final state: x1={cpu.get_register(1)}, x3={cpu.get_register(3)}")
+print(cpu.dump_registers())
+```
 
 ## Project Structure
 
 ```
 RISCSim/
-├── riscsim/                   # Main package (renamed from src/)
+├── riscsim/                   # Main package
 │   ├── __init__.py
 │   ├── cpu/                   # CPU components
 │   │   ├── __init__.py
-│   │   ├── alu.py             # Arithmetic Logic Unit
-│   │   ├── shifter.py         # Barrel shifter
-│   │   ├── mdu.py             # Multiply/Divide Unit
-│   │   ├── fpu.py             # Floating-Point Unit
-│   │   └── registers.py       # Register file and FCSR
+│   │   ├── alu.py             # Arithmetic Logic Unit (32-bit, bit-level)
+│   │   ├── shifter.py         # Barrel shifter (SLL, SRL, SRA)
+│   │   ├── mdu.py             # Multiply/Divide Unit (M extension)
+│   │   ├── fpu.py             # Floating-Point Unit (F extension)
+│   │   ├── registers.py       # Register file (32 int + 32 FP registers)
+│   │   ├── control_signals.py # Control signal management
+│   │   ├── control_unit.py    # Control FSM
+│   │   ├── memory.py          # Instruction/Data memory (128KB)
+│   │   ├── fetch.py           # Fetch unit with PC management
+│   │   ├── decoder.py         # Instruction decoder (6 RISC-V formats)
+│   │   ├── datapath.py        # Single-cycle datapath
+│   │   └── cpu.py             # CPU top-level (main interface)
 │   └── utils/                 # Utility modules
 │       ├── __init__.py
-│       └── bit_utils.py       # Bit manipulation utilities
-├── tests/                     # Test suite
-│   ├── test_bit_utils.py
-│   ├── test_alu.py
-│   └── ...
+│       ├── bit_utils.py       # Bit manipulation utilities
+│       ├── components.py      # Hardware components (mux, demux)
+│       ├── twos_complement.py # Two's complement operations
+│       └── hex_loader.py      # .hex file loader
+├── tests/                     # Comprehensive test suite (586 tests)
+│   ├── test_*.py              # Component tests
+│   └── programs/              # Test programs (.hex files)
+│       ├── test_base.hex      # Provided reference program
+│       ├── test_arithmetic.hex
+│       ├── test_logical.hex
+│       ├── test_shifts.hex
+│       ├── test_memory.hex
+│       ├── test_branches.hex
+│       └── test_jumps.hex
+├── docs/                      # Documentation
+│   ├── ARCHITECTURE.md        # System architecture details
+│   ├── INSTRUCTION_SET.md     # Instruction reference
+│   ├── USAGE.md               # Usage guide
+│   └── diagrams/              # Architecture diagrams
+├── examples/                  # Usage examples
+│   ├── control_unit_demo.py
+│   └── ... (component demos)
+├── encode_riscv.py            # Helper to create .hex files
 ├── pyproject.toml             # Modern Python packaging config
-├── README.md
-└── PROJECTINSTRUCTIONS.md
+├── requirements.txt           # Dependencies
+├── README.md                  # This file
+├── RISCV_CPU_IMPLEMENTATION_PLAN.md  # Development roadmap
+├── PROJECT_ARCHITECTURE.md    # Architecture compliance
+└── AI_USAGE.md                # AI assistance disclosure
 ```
 
 ## Installation
+
+### Prerequisites
+- Python 3.8 or higher
+- pip package manager
+- Git (for cloning)
 
 ### For Development (Recommended)
 
@@ -68,87 +128,326 @@ RISCSim/
 git clone https://github.com/CPSC-440-CPU-Arch/RISCSim.git
 cd RISCSim
 
-# Create virtual environment
+# Create virtual environment (recommended)
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install in editable mode (changes reflect immediately)
-pip install -e .
-
-# Or install with development dependencies
+# Install in editable mode with development dependencies
 pip install -e ".[dev]"
 ```
 
 ### For Users
 
 ```bash
-# Install directly from repository
+# Install directly from GitHub
 pip install git+https://github.com/CPSC-440-CPU-Arch/RISCSim.git
 
 # Or after cloning
+cd RISCSim
 pip install .
 ```
 
-## Usage
+### Verify Installation
+
+```bash
+# Run full test suite (586 tests)
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_cpu.py -v
+```
+
+## Usage Examples
+
+### Basic Program Execution
 
 ```python
-from riscsim.utils.bit_utils import bits_and, bits_to_hex_string
-from riscsim.cpu.alu import alu
+from riscsim.cpu.cpu import CPU
 
-# Use bit utilities
-result = bits_and([1,0,1,0], [1,1,0,0])
-print(bits_to_hex_string(result))  # Output: 0x8
+# Create CPU instance
+cpu = CPU()
 
-# Use CPU components
-alu()  # Will be expanded with actual ALU operations
+# Load a program from hex file
+cpu.load_program('tests/programs/test_base.hex')
+
+# Execute program (runs until halt)
+result = cpu.run(max_cycles=1000)
+
+# Print results
+print(f"Executed {result.instruction_count} instructions in {result.cycle_count} cycles")
+print(f"Halt reason: {result.halt_reason}")
+
+# Inspect final register state
+print("Final registers:")
+for i in range(1, 8):
+    print(f"  x{i} = {cpu.get_register(i)}")
+```
+
+### Single-Step Debugging
+
+```python
+from riscsim.cpu.cpu import CPU
+
+cpu = CPU()
+cpu.load_program('tests/programs/test_arithmetic.hex')
+
+# Execute one instruction at a time
+for i in range(10):
+    cycle = cpu.step()
+    print(f"Cycle {i+1}: PC=0x{cycle.pc_int:08X}, "
+          f"Instr={cycle.decoded.mnemonic}, "
+          f"Result=0x{cycle.alu_result_int:08X}")
+
+# Dump registers
+print(cpu.dump_registers())
+```
+
+### Creating Custom Programs
+
+```python
+from encode_riscv import *
+
+# Create a simple program: x3 = (x1 + x2) * 2
+program = [
+    addi(1, 0, 10),         # x1 = 10
+    addi(2, 0, 20),         # x2 = 20
+    add(3, 1, 2),           # x3 = x1 + x2 = 30
+    slli(3, 3, 1),          # x3 = x3 << 1 = 60
+    jal(0, 0),              # halt (infinite loop)
+]
+
+write_hex_file('my_program.hex', program)
+
+# Run the program
+cpu = CPU()
+cpu.load_program('my_program.hex')
+cpu.run()
+print(f"Result: x3 = {cpu.get_register(3)}")  # Should be 60
+```
+
+### Performance Analysis
+
+```python
+from riscsim.cpu.cpu import CPU
+
+cpu = CPU()
+cpu.load_program('tests/programs/test_branches.hex')
+result = cpu.run()
+
+# Get detailed statistics
+stats = cpu.get_statistics()
+
+print(f"Performance Statistics:")
+print(f"  Instructions: {stats.instruction_count}")
+print(f"  Cycles: {stats.cycle_count}")
+print(f"  CPI: {stats.cpi:.2f}")
+print(f"\nInstruction Mix:")
+for instr, count in sorted(stats.instruction_mix.items()):
+    percentage = (count / stats.instruction_count) * 100
+    print(f"  {instr:<8}: {count:>4} ({percentage:>5.1f}%)")
 ```
 
 ## Testing
+
+RISCSim includes a comprehensive test suite with **586 tests** covering all components:
 
 ```bash
 # Run all tests
 pytest
 
-# Run specific test file
-pytest tests/test_bit_utils.py
+# Run with coverage report
+pytest --cov=riscsim --cov-report=term-missing
 
-# Run with verbose output
-pytest -v
+# Run specific component tests
+pytest tests/test_cpu.py -v          # CPU tests (20 tests)
+pytest tests/test_datapath.py -v     # Datapath tests (28 tests)
+pytest tests/test_decoder.py -v      # Decoder tests (36 tests)
+pytest tests/test_memory.py -v       # Memory tests (26 tests)
+pytest tests/test_fetch.py -v        # Fetch tests (25 tests)
 
-# Run with print statements visible
+# Run test programs
+pytest tests/test_programs.py -v     # Program execution tests (10 tests)
+
+# Run with output
 pytest -v -s
 ```
 
+### Test Coverage
+
+| Component | Tests | Status |
+|-----------|-------|--------|
+| **Phase 1: Memory & Fetch** | 81 | ✅ 100% |
+| **Phase 2: Decoder** | 36 | ✅ 100% |
+| **Phase 3: Datapath** | 28 | ✅ 100% |
+| **Phase 4: CPU Top-Level** | 20 | ✅ 100% |
+| **Phase 5: Test Programs** | 10 | ✅ 100% |
+| **Existing Components** | 411 | ✅ 100% |
+| **Total** | **586** | **✅ 100%** |
+
 ## Design Constraints
 
-This simulator follows strict hardware-accurate implementation rules:
+RISCSim follows strict **hardware-accurate implementation** rules to ensure it truly simulates hardware behavior:
 
-- ❌ **No built-in numeric operators**: No `+`, `-`, `*`, `/`, `%`, `<<`, `>>` in implementation
-- ❌ **No base conversion helpers**: No `int(..., base)`, `bin()`, `hex()`, `format()`
+### Implementation Modules (NO HOST OPERATORS)
+
+- ❌ **No built-in numeric operators**: No `+`, `-`, `*`, `/`, `%`, `<<`, `>>` in core logic
+- ❌ **No base conversion helpers**: No `int(..., base)`, `bin()`, `hex()`, `format()` in implementation
 - ❌ **No float math**: All floating-point operations implemented at bit level
-- ✅ **Bit-level operations only**: Boolean logic, array indexing, control flow
-- ✅ **Explicit bit vectors**: All data carried as arrays of 0/1
+- ✅ **Bit-level operations only**: Boolean logic (`and`, `or`, `xor`, `not`), array indexing, slicing
+- ✅ **Explicit bit vectors**: All data carried as arrays of 0/1 (e.g., `[1,0,1,1,0,0,1,0]`)
 
-## Architecture Principles
+### Boundary Functions (Format Conversion Only)
 
-To facilitate merging with the future CPU simulator:
+I/O boundary functions are allowed for format conversion (like `struct.pack`/`unpack` in C):
 
-1. **Pure functions**: Stateless operations that return results
-2. **Explicit state**: `State{regs[32], fregs[32], flags}` structure
-3. **Modular design**: Each component (ALU, MDU, FPU) is independent
-4. **Traceable execution**: All multi-step operations provide cycle-by-cycle traces
-5. **Deterministic**: No global state or side effects
+```python
+# Boundary function - converts Python int to bit array
+def int_to_bits(value: int, width: int) -> List[int]:
+    """Format conversion only, not used in arithmetic algorithms"""
+    
+# Boundary function - converts bit array to Python int  
+def bits_to_int(bits: List[int]) -> int:
+    """Format conversion only, for test verification"""
+```
 
-## Development Timeline
+### How Arithmetic Works
 
-- ✅ T0: Project structure and bit utilities
-- 🔄 T0+3 days: Two's-complement and ALU with tests
-- ⏳ T0+1 week: RV32M multiply/divide with traces
-- ⏳ T0+2 weeks: Float32 operations and comprehensive tests
+All arithmetic is built from primitive operations:
+
+1. **Addition**: Chain of 1-bit full adders
+   ```python
+   # Each bit computed using only boolean logic
+   sum_bit = a_bit ^ b_bit ^ carry_in
+   carry_out = (a_bit & b_bit) | (a_bit & carry_in) | (b_bit & carry_in)
+   ```
+
+2. **Subtraction**: Addition with two's complement
+   ```python
+   # a - b = a + (~b + 1)
+   result = ALU(a, invert_bits(b), carry_in=1)
+   ```
+
+3. **Multiplication**: Shift-and-add algorithm
+   ```python
+   for each bit in multiplier:
+       if bit == 1:
+           result = ALU(result, multiplicand << i, ADD)
+   ```
+
+4. **Shifting**: Barrel shifter with array operations
+   ```python
+   # Shift left by 1: remove LSB, add 0 at MSB
+   shifted = data[1:] + [0]
+   ```
+
+See [PROJECT_ARCHITECTURE.md](PROJECT_ARCHITECTURE.md) for detailed compliance documentation.
+
+## Architecture Overview
+
+RISCSim implements a **single-cycle RISC-V CPU** with Harvard architecture:
+
+```
+┌────────────┐     ┌────────────┐     ┌────────────┐
+│  Fetch     │────▶│  Decode    │────▶│  Execute   │
+│  (PC, I$)  │     │  (Decoder) │     │  (ALU)     │
+└────────────┘     └────────────┘     └────────────┘
+                                            │
+┌────────────┐     ┌────────────┐          │
+│ Writeback  │◀────│  Memory    │◀─────────┘
+│ (RegFile)  │     │  (D$)      │
+└────────────┘     └────────────┘
+```
+
+**Key Features:**
+- **Single-cycle execution**: All 5 stages complete in one cycle
+- **Harvard architecture**: Separate instruction and data memory
+- **Word-aligned memory**: 4-byte aligned access for LW/SW
+- **32 registers**: x0-x31 (x0 hardwired to zero)
+- **128KB memory**: 64KB instruction + 64KB data
+
+For detailed architecture documentation, see:
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Complete system architecture
+- [docs/INSTRUCTION_SET.md](docs/INSTRUCTION_SET.md) - Instruction reference
+- [docs/USAGE.md](docs/USAGE.md) - Usage guide and examples
+
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: System overview, component descriptions, datapath diagrams, control signals, memory map
+- **[INSTRUCTION_SET.md](docs/INSTRUCTION_SET.md)**: Complete instruction reference with encoding details and examples
+- **[USAGE.md](docs/USAGE.md)**: Installation, usage examples, debugging, performance analysis
+- **[PROJECT_ARCHITECTURE.md](PROJECT_ARCHITECTURE.md)**: Design constraints and compliance verification
+- **[RISCV_CPU_IMPLEMENTATION_PLAN.md](RISCV_CPU_IMPLEMENTATION_PLAN.md)**: Development roadmap and phase completion status
+
+## Implementation Status
+
+### ✅ Phase 1: Instruction Memory and Fetch Unit (COMPLETE)
+- Memory unit with instruction/data regions
+- Fetch unit with PC management
+- Hex file loader
+- **81 tests passing**
+
+### ✅ Phase 2: Instruction Decoder (COMPLETE)
+- Full RISC-V instruction decoder (6 formats)
+- Immediate extraction with sign extension
+- Control signal generation
+- **36 tests passing**
+
+### ✅ Phase 3: Single-Cycle Datapath (COMPLETE)
+- Five-stage datapath integration
+- Component interconnection
+- Branch/jump logic
+- **28 tests passing**
+
+### ✅ Phase 4: CPU Simulator Top-Level (COMPLETE)
+- CPU class with execution control
+- Program loading and execution
+- Debugging features
+- Statistics tracking
+- **20 tests passing**
+
+### ✅ Phase 5: Test Program Execution (COMPLETE)
+- 7 comprehensive test programs
+- Arithmetic, logical, shifts, memory, branches, jumps
+- Full instruction coverage
+- **10 tests passing**
+
+### ✅ Phase 6: Documentation and Diagrams (COMPLETE)
+- Architecture documentation
+- Instruction set reference
+- Usage guide
+- ASCII art diagrams
+
+### ⏳ Phase 7: Integration Testing (Planned)
+- Edge case testing
+- Corner case validation
+- Performance benchmarking
+
+**Total: 586 tests passing (Phases 1-5 + existing components)**
+
+## Project Timeline
+
+- ✅ **Week 1**: Phases 1-2 (Memory, Fetch, Decoder) - COMPLETE
+- ✅ **Week 2**: Phase 3 (Datapath Integration) - COMPLETE
+- ✅ **Week 3**: Phases 4-5 (CPU Top-Level, Test Programs) - COMPLETE
+- ✅ **Week 4**: Phase 6 (Documentation) - COMPLETE
+- ⏳ **Future**: Phase 7 (Integration Testing) - Planned
 
 ## Contributing
 
-See `AI_USAGE.md` for AI assistance disclosure and contribution guidelines.
+This is an academic project for CPSC440 - Computer Architecture. See [AI_USAGE.md](AI_USAGE.md) for AI assistance disclosure and development guidelines.
+
+### Development Guidelines
+
+1. **Follow hardware-accurate constraints**: No host arithmetic operators in implementation
+2. **Maintain test coverage**: Add tests for all new features
+3. **Document thoroughly**: Include docstrings and usage examples
+4. **Use consistent style**: Follow existing code patterns
+5. **Commit frequently**: Clear commit messages describing changes
 
 ## License
 
@@ -157,5 +456,12 @@ Academic project for CPSC440 - Computer Architecture
 ## References
 
 - [RISC-V ISA Specification](https://riscv.org/technical/specifications/)
+- [RISC-V Reader: An Open Architecture Atlas](http://www.riscvbook.com/)
 - [IEEE-754 Standard](https://standards.ieee.org/standard/754-2019.html)
-- Computer Organization and Design RISC-V Edition (Patterson & Hennessy)
+- [Computer Organization and Design RISC-V Edition](https://www.elsevier.com/books/computer-organization-and-design-risc-v-edition/patterson/978-0-12-812275-4) (Patterson & Hennessy)
+
+## Acknowledgments
+
+- RISC-V Foundation for open ISA specification
+- CPSC440 course staff for project guidance
+- Open-source RISC-V community for reference implementations
