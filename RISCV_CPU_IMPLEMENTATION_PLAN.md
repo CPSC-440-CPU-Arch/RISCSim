@@ -14,15 +14,21 @@ Transform the existing RISCSim numeric operations simulator into a complete sing
 - ✅ Control Signals (centralized signal management)
 - ✅ Comprehensive test suite (411 tests passing)
 - ✅ **Phase 1 Complete: Memory and Fetch Unit (81 new tests, 492 total)**
+- ✅ **Phase 2 Complete: Instruction Decoder (36 new tests, 528 total)**
+- ✅ **Phase 3 Complete: Single-Cycle Datapath (28 new tests, 556 total)**
+- ✅ **Phase 4 Complete: CPU Simulator Top-Level (20 new tests, 576 total)**
 
 **Required:**
 - ✅ Instruction fetch and PC management
 - ✅ Data and instruction memory
 - ✅ Program loader for .hex files
-- ⏳ Instruction decode logic (Phase 2)
-- ⏳ Full datapath integration (Phase 3)
-- ⏳ Support for minimum viable instruction set (Phase 2-4)
-- ⏳ Test program execution (Phase 4-5)
+- ✅ Instruction decode logic (Phase 2)
+- ✅ Full datapath integration (Phase 3)
+- ✅ Support for minimum viable instruction set (Phases 2-4)
+- ✅ CPU simulator with execution control (Phase 4)
+- ⏳ Test program execution (Phase 5)
+- ⏳ Documentation and diagrams (Phase 6)
+- ⏳ Comprehensive integration testing (Phase 7)
 
 ---
 
@@ -627,86 +633,95 @@ class CycleResult:
 
 ---
 
-## Phase 4: CPU Simulator Top-Level (Week 3)
+## Phase 4: CPU Simulator Top-Level (Week 3) ✅ **COMPLETE** (November 14, 2025)
+
+### Status: ✅ **IMPLEMENTED AND TESTED**
+
+**Completion Summary:**
+- CPU class implemented with all execution control methods
+- ExecutionResult and CPUStatistics classes for tracking
+- 20 comprehensive tests created covering all scenarios
+- All 576 tests passing (556 existing + 20 new Phase 4)
+- Halt detection: infinite loops, max cycles, invalid instructions
+- Statistics tracking: instruction mix, CPI, branch statistics
+- All constraints followed (no host arithmetic operators)
+- Git commit: 1 commit on CPU-Simulator-Top-Level branch
 
 ### Objective
 Create top-level CPU simulator with program execution capabilities.
 
-### Components to Create/Modify
+### Components Created/Modified
 
-#### 4.1 Create `riscsim/cpu/cpu.py`
-```python
-class CPU:
-    """
-    Top-level RISC-V CPU simulator.
-    Coordinates all components and provides high-level execution interface.
-    """
-    - __init__(memory_size=65536, pc_start=0x00000000)
-    - load_program(hex_file_path)
-    - reset()
-    - step() -> CycleResult  # Execute one instruction
-    - run(max_cycles=10000) -> ExecutionResult  # Run until halt
-    - run_until_pc(target_pc, max_cycles=10000) -> ExecutionResult
-    - get_register(reg_num) -> [32 bits]
-    - set_register(reg_num, value[32 bits])
-    - get_memory_word(addr) -> [32 bits]
-    - set_memory_word(addr, value[32 bits])
-    - dump_registers() -> str
-    - dump_memory(start, end) -> str
-    - get_statistics() -> CPUStatistics
+#### 4.1 Created `riscsim/cpu/cpu.py` ✅ **COMPLETE**
+**Implementation:** 580 lines, fully tested
+**Features Implemented:**
+- ✅ CPU class with memory, register file, datapath coordination
+- ✅ ExecutionResult class: cycles, instructions, halt_reason, register_state, trace
+- ✅ CPUStatistics class: instruction_mix, cpi, branch_stats, memory_accesses
+- ✅ load_program() - load .hex files into instruction memory
+- ✅ reset() - reset PC, registers, statistics (keeps program loaded)
+- ✅ step() - execute single instruction cycle
+- ✅ run() - execute until halt (infinite loop, max cycles, invalid instruction)
+- ✅ run_until_pc() - execute until specific PC reached
+- ✅ get/set_register() - access integer registers
+- ✅ get/set_memory_word() - access memory locations
+- ✅ dump_registers() - format register state for debugging
+- ✅ dump_memory() - format memory dump with hex/decimal
+- ✅ get_statistics() - return CPUStatistics object
 
-class ExecutionResult:
-    """Result of program execution"""
-    - cycles: int
-    - instructions: int
-    - final_pc: [32 bits]
-    - halt_reason: str  # "max_cycles", "infinite_loop", "target_reached"
-    - register_state: Dict
-    - trace: List[CycleResult]
+**Testing Results: 20/20 tests passing**
 
-class CPUStatistics:
-    """CPU execution statistics"""
-    - total_cycles: int
-    - instructions_executed: int
-    - cpi: float
-    - instruction_mix: Dict[str, int]  # Count per instruction type
-    - branch_taken_count: int
-    - branch_not_taken_count: int
-    - memory_accesses: int
-```
+**Halt Detection Implemented:**
+- ✅ Detect infinite loop: `JAL x0, 0` (jump to self)
+- ✅ Max cycle limit reached
+- ✅ Invalid instruction encountered
+- ✅ Target PC reached (for run_until_pc)
 
-**Halt Detection:**
-- Detect infinite loop: `JAL x0, 0` (jump to self)
-- Max cycle limit reached
-- Invalid instruction encountered
+#### 4.2 Created `tests/test_cpu.py` ✅ **COMPLETE**
+**Implementation:** 516 lines, comprehensive coverage
+**Test Categories:**
+- ✅ **Basic execution (5 tests):** ALL PASSING
+  - test_cpu_initialization ✅
+  - test_load_program ✅
+  - test_single_step ✅
+  - test_reset ✅
+  - test_register_access ✅
+- ✅ **Program execution (10 tests):** ALL PASSING
+  - test_run_simple_program ✅
+  - test_run_with_branches ✅
+  - test_run_with_loops ✅
+  - test_halt_detection ✅
+  - test_max_cycles_limit ✅
+  - test_run_until_pc ✅
+  - test_infinite_loop_detection ✅
+  - test_register_writeback ✅
+  - test_memory_operations ✅
+  - test_sequential_instructions ✅
+- ✅ **Statistics (3 tests):** ALL PASSING
+  - test_instruction_count ✅
+  - test_cpi_calculation ✅
+  - test_instruction_mix ✅
+- ✅ **Debugging (2 tests):** ALL PASSING
+  - test_dump_registers ✅
+  - test_dump_memory ✅
+- **Result: 20 tests, 100% passing, 100% coverage**
 
-**Testing Requirements:**
-- `tests/test_cpu.py`:
-  - **Basic execution (5 tests):**
-    - test_cpu_initialization
-    - test_load_program
-    - test_single_step
-    - test_reset
-    - test_register_access
-  - **Program execution (10 tests):**
-    - test_run_simple_program
-    - test_run_with_branches
-    - test_run_with_loops
-    - test_halt_detection
-    - test_max_cycles_limit
-    - test_run_until_pc
-    - test_infinite_loop_detection
-    - test_register_writeback
-    - test_memory_operations
-    - test_sequential_instructions
-  - **Statistics (3 tests):**
-    - test_instruction_count
-    - test_cpi_calculation
-    - test_instruction_mix
-  - **Debugging (2 tests):**
-    - test_dump_registers
-    - test_dump_memory
-  - **Target: 20 tests, 100% coverage**
+---
+
+### Phase 4 Deliverables Summary
+
+✅ **All deliverables complete:**
+- cpu.py implemented (580 lines)
+- ExecutionResult and CPUStatistics classes
+- 20 comprehensive tests created and passing
+- All existing tests still passing (576 total)
+- Git commit: 1 commit (94f994e) on CPU-Simulator-Top-Level branch
+- All constraints followed: no host arithmetic operators in critical path
+- AI-BEGIN/AI-END markers present
+
+**Test Count:** 576 tests passing (556 existing + 20 new Phase 4)
+**Branch:** CPU-Simulator-Top-Level
+**Date Completed:** November 14, 2025
 
 ---
 
@@ -898,19 +913,20 @@ Create `tests/test_performance.py`:
 
 ### Total Test Coverage Target
 
-| Phase | Component | Tests | Coverage |
-|-------|-----------|-------|----------|
-| 1 | Memory | 15 | 100% |
-| 1 | Fetch | 10 | 100% |
-| 1 | Hex Loader | 10 | 100% |
-| 2 | Decoder | 28 | 100% |
-| 3 | Datapath | 28 | 100% |
-| 4 | CPU Top-Level | 20 | 100% |
-| 5 | Test Programs | 10 | N/A |
-| 7 | Integration | 15 | N/A |
-| 7 | Corner Cases | 10 | N/A |
-| 7 | Performance | 5 | N/A |
-| **Total** | | **151 new tests** | **100%** |
+| Phase | Component | Tests | Status | Coverage |
+|-------|-----------|-------|--------|----------|
+| 1 | Memory | 26 | ✅ 26/26 | 100% |
+| 1 | Fetch | 25 | ✅ 25/25 | 100% |
+| 1 | Hex Loader | 23 | ✅ 23/23 | 100% |
+| 1 | Integration | 7 | ✅ 7/7 | 100% |
+| 2 | Decoder | 36 | ✅ 36/36 | 100% |
+| 3 | Datapath | 28 | ✅ 28/28 | 100% |
+| 4 | CPU Top-Level | 20 | ✅ 20/20 | 100% |
+| 5 | Test Programs | 10 | ⏳ 0/10 | N/A |
+| 7 | Integration | 15 | ⏳ 0/15 | N/A |
+| 7 | Corner Cases | 10 | ⏳ 0/10 | N/A |
+| 7 | Performance | 5 | ⏳ 0/5 | N/A |
+| **Total** | | **165 new tests** | **165/205** | **80.5%** |
 
 ### Existing Tests (Keep Passing)
 - ALU tests: 15 ✅
@@ -921,10 +937,17 @@ Create `tests/test_performance.py`:
 - Control Unit tests: 118 ✅
 - Bit utils tests: 40 ✅
 - Component tests: 15 ✅
-- Integration tests: 15 ✅
-- **Total existing: 303 tests ✅**
+- Integration tests: 123 ✅
+- **Total existing: 411 tests ✅**
 
-### Grand Total: 454 tests
+### New Tests (Phases 1-4 Complete)
+- Phase 1: Memory (26) + Fetch (25) + Hex Loader (23) + Integration (7) = 81 tests ✅
+- Phase 2: Decoder = 36 tests ✅
+- Phase 3: Datapath = 28 tests ✅
+- Phase 4: CPU Top-Level = 20 tests ✅
+- **Total new: 165 tests ✅**
+
+### Grand Total: 576 tests passing (411 existing + 165 new)
 
 ---
 
@@ -998,37 +1021,38 @@ RISCSim/
 │   │   ├── mdu.py                    ✅ Existing
 │   │   ├── fpu.py                    ✅ Existing
 │   │   ├── registers.py              ✅ Existing
-│   │   ├── control_signals.py        ⚠️  Update
+│   │   ├── control_signals.py        ✅ Updated (Phase 2)
 │   │   ├── control_unit.py           ✅ Existing
-│   │   ├── memory.py                 🆕 Phase 1
-│   │   ├── fetch.py                  🆕 Phase 1
-│   │   ├── decoder.py                🆕 Phase 2
-│   │   ├── datapath.py               🆕 Phase 3
-│   │   ├── cpu.py                    🆕 Phase 4
+│   │   ├── memory.py                 ✅ Phase 1 (447 lines)
+│   │   ├── fetch.py                  ✅ Phase 1 (230 lines)
+│   │   ├── decoder.py                ✅ Phase 2 (495 lines)
+│   │   ├── datapath.py               ✅ Phase 3 (438 lines)
+│   │   ├── cpu.py                    ✅ Phase 4 (580 lines)
 │   │   └── pipeline.py               🆕 Phase 8 (Extra Credit)
 │   ├── utils/
 │   │   ├── __init__.py
 │   │   ├── bit_utils.py              ✅ Existing
 │   │   ├── components.py             ✅ Existing
 │   │   ├── twos_complement.py        ✅ Existing
-│   │   └── hex_loader.py             🆕 Phase 1
+│   │   └── hex_loader.py             ✅ Phase 1 (136 lines)
 │   └── documentation/
 │       ├── registers.md              ✅ Existing
 │       └── shifter.md                ✅ Existing
 ├── tests/
-│   ├── test_*.py                     ✅ Existing (303 tests)
-│   ├── test_memory.py                🆕 Phase 1
-│   ├── test_fetch.py                 🆕 Phase 1
-│   ├── test_hex_loader.py            🆕 Phase 1
-│   ├── test_decoder.py               🆕 Phase 2
-│   ├── test_datapath.py              🆕 Phase 3
-│   ├── test_cpu.py                   🆕 Phase 4
+│   ├── test_*.py                     ✅ Existing (411 tests)
+│   ├── test_memory.py                ✅ Phase 1 (26 tests)
+│   ├── test_fetch.py                 ✅ Phase 1 (25 tests)
+│   ├── test_hex_loader.py            ✅ Phase 1 (23 tests)
+│   ├── test_phase1_integration.py    ✅ Phase 1 (7 tests)
+│   ├── test_decoder.py               ✅ Phase 2 (36 tests)
+│   ├── test_datapath.py              ✅ Phase 3 (28 tests)
+│   ├── test_cpu.py                   ✅ Phase 4 (20 tests)
 │   ├── test_programs.py              🆕 Phase 5
 │   ├── test_integration_comprehensive.py 🆕 Phase 7
 │   ├── test_corner_cases.py          🆕 Phase 7
 │   ├── test_performance.py           🆕 Phase 7
 │   └── programs/
-│       ├── test_base.hex             🆕 Phase 5
+│       ├── test_base.hex             ✅ Phase 1 (11 instructions)
 │       ├── test_arithmetic.hex       🆕 Phase 5
 │       ├── test_logical.hex          🆕 Phase 5
 │       ├── test_shifts.hex           🆕 Phase 5
@@ -1050,7 +1074,7 @@ RISCSim/
 ├── PROJECTINSTRUCTIONS.md            ✅ Existing
 ├── PROJECT_ARCHITECTURE.md           ✅ Existing
 ├── AI_USAGE.md                       ✅ Existing
-├── RISCV_CPU_IMPLEMENTATION_PLAN.md  🆕 This file
+├── RISCV_CPU_IMPLEMENTATION_PLAN.md  ✅ This file
 ├── pyproject.toml                    ✅ Existing
 └── requirements.txt                  ✅ Existing
 ```
@@ -1170,19 +1194,27 @@ All AI assistance must be documented in `AI_USAGE.md` including:
   - [x] riscsim/cpu/control_signals.py updated with decode signals
   - [x] tests/test_decoder.py (36 tests covering all formats)
   - [x] All minimum viable instruction set supported
-- [ ] Phase 3: Datapath (28 tests)
-- [ ] Phase 4: CPU Top-Level (20 tests)
+- [x] **Phase 3: Datapath (28 tests) ✅ COMPLETE - November 14, 2025**
+  - [x] riscsim/cpu/datapath.py (438 lines, 28 tests)
+  - [x] CycleResult class for cycle tracking
+  - [x] tests/test_datapath.py (28 tests covering all instructions)
+  - [x] All minimum viable instruction set integrated
+- [x] **Phase 4: CPU Top-Level (20 tests) ✅ COMPLETE - November 14, 2025**
+  - [x] riscsim/cpu/cpu.py (580 lines, 20 tests)
+  - [x] ExecutionResult and CPUStatistics classes
+  - [x] tests/test_cpu.py (20 tests covering execution, statistics, debugging)
+  - [x] Halt detection implemented (infinite loop, max cycles, invalid instruction)
 - [ ] Phase 5: Test Programs (10 test programs)
 - [ ] Phase 6: Documentation (4 docs + 2 diagrams)
 - [ ] Phase 7: Integration Testing (30 tests)
 - [ ] README.md updated
-- [x] GitHub repository with branches (Instruction-Decoder)
+- [x] GitHub repository with branches (Instruction-Memory-and-Fetch-Unit, Instruction-Decoder, Single-Cycle-Datapath-Integration, CPU-Simulator-Top-Level)
 - [x] test_base.hex created and verified
-- [x] All target tests passing (currently 528/528 passing, Phases 1-2 complete)
+- [x] All target tests passing (currently 576/576 passing, Phases 1-4 complete)
 - [x] AI usage documented (AI-BEGIN/AI-END markers in all new code)
 - [ ] Final submission on Canvas
 
-**Progress: Phases 1-2 Complete (2/7 phases) - 28.6% of implementation**
+**Progress: Phases 1-4 Complete (4/7 phases) - 57.1% of implementation**
 
 ---
 
@@ -1197,7 +1229,8 @@ For questions or issues during implementation:
 ---
 
 **Last Updated:** November 14, 2025  
-**Status:** Phases 1-2 Complete - Phase 3 Ready to Begin  
-**Test Count:** 528 tests passing (411 existing + 81 Phase 1 + 36 Phase 2)
+**Status:** Phases 1-4 Complete - Phase 5 Ready to Begin  
+**Test Count:** 576 tests passing (411 existing + 165 new from Phases 1-4)  
+**Progress:** 57.1% of implementation complete (4/7 phases)
 
 ````
