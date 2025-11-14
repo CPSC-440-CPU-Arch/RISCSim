@@ -62,6 +62,16 @@ class ControlSignals:
         self.cycle = 0              # Current cycle number
         self.pc = [0] * 32          # Program counter
         
+        # RISC-V Instruction Decode Signals (Phase 2)
+        self.mem_read = 0           # Memory read enable (for LW)
+        self.mem_write = 0          # Memory write enable (for SW)
+        self.branch = 0             # Branch instruction flag (BEQ, BNE, etc.)
+        self.jump = 0               # Jump instruction flag (JAL, JALR)
+        self.result_src = 0         # Result source: 0=ALU, 1=memory, 2=PC+4
+        self.pc_src = 0             # PC source: 0=PC+4, 1=branch target, 2=jump target
+        self.alu_src_a = 0          # ALU source A: 0=rs1, 1=PC
+        self.alu_src_b = 0          # ALU source B: 0=rs2, 1=immediate
+        
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert control signals to dictionary for tracing/logging.
@@ -89,6 +99,15 @@ class ControlSignals:
             'round_mode': self.round_mode,
             'cycle': self.cycle,
             'pc': self.pc.copy(),
+            # RISC-V decode signals
+            'mem_read': self.mem_read,
+            'mem_write': self.mem_write,
+            'branch': self.branch,
+            'jump': self.jump,
+            'result_src': self.result_src,
+            'pc_src': self.pc_src,
+            'alu_src_a': self.alu_src_a,
+            'alu_src_b': self.alu_src_b,
         }
     
     def from_dict(self, signal_dict: Dict[str, Any]):
