@@ -12,26 +12,49 @@ Transform the existing RISCSim numeric operations simulator into a complete sing
 - ✅ Register File (32 integer + 32 FP registers)
 - ✅ Control Unit (FSM for multi-cycle operations)
 - ✅ Control Signals (centralized signal management)
-- ✅ Comprehensive test suite (390+ tests passing)
+- ✅ Comprehensive test suite (411 tests passing)
+- ✅ **Phase 1 Complete: Memory and Fetch Unit (81 new tests, 492 total)**
 
 **Required:**
-- Instruction fetch and decode logic
-- Data and instruction memory
-- Full datapath integration
-- Support for minimum viable instruction set
-- Program loader for .hex files
-- Test program execution
+- ✅ Instruction fetch and PC management
+- ✅ Data and instruction memory
+- ✅ Program loader for .hex files
+- ⏳ Instruction decode logic (Phase 2)
+- ⏳ Full datapath integration (Phase 3)
+- ⏳ Support for minimum viable instruction set (Phase 2-4)
+- ⏳ Test program execution (Phase 4-5)
 
 ---
 
-## Phase 1: Instruction Memory and Fetch Unit (Week 1)
+## Phase 1: Instruction Memory and Fetch Unit ✅ **COMPLETE** (November 14, 2025)
+
+### Status: ✅ **IMPLEMENTED AND TESTED**
+
+**Completion Summary:**
+- All 3 modules implemented: Memory, FetchUnit, hex_loader
+- 81 new tests created (74 unit + 7 integration)
+- All 492 tests passing (411 existing + 81 new)
+- test_base.hex program created and tested
+- All constraints followed (no host operators in core logic)
+- Git commits: 2 commits on Instruction-Memory-and-Fetch-Unit branch
 
 ### Objective
 Implement instruction memory and basic instruction fetch mechanism.
 
 ### Components to Create/Modify
 
-#### 1.1 Create `riscsim/cpu/memory.py`
+#### 1.1 Create `riscsim/cpu/memory.py` ✅ **COMPLETE**
+**Implementation:** 447 lines, fully tested
+**Features Implemented:**
+- ✅ Word-addressable (32-bit) and byte-addressable memory
+- ✅ Little-endian byte ordering
+- ✅ Address alignment checking for word access  
+- ✅ Address bounds checking
+- ✅ Separate instruction (0x00000000+) and data (0x00010000+) regions
+- ✅ Program loading from .hex files
+- ✅ Memory dump for debugging
+
+**Testing Results: 26/26 tests passing**
 ```python
 class Memory:
     """
@@ -69,7 +92,17 @@ class Memory:
   - test_boundary_addresses
   - **Target: 15 tests, 100% coverage**
 
-#### 1.2 Create `riscsim/cpu/fetch.py`
+#### 1.2 Create `riscsim/cpu/fetch.py` ✅ **COMPLETE**
+**Implementation:** 230 lines, fully tested
+**Features Implemented:**
+- ✅ PC (Program Counter) management with alignment checking
+- ✅ Instruction fetch from memory
+- ✅ PC increment (PC + 4) using ALU (no host operators)
+- ✅ Absolute branch/jump to target address
+- ✅ Relative branch (PC + offset)
+- ✅ Get next PC for return address calculation (JAL/JALR)
+
+**Testing Results: 25/25 tests passing**
 ```python
 class FetchUnit:
     """
@@ -96,7 +129,64 @@ class FetchUnit:
   - test_pc_alignment
   - **Target: 10 tests, 100% coverage**
 
-#### 1.3 Create `riscsim/utils/hex_loader.py`
+#### 1.3 Create `riscsim/utils/hex_loader.py` ✅ **COMPLETE**
+**Implementation:** 136 lines, fully tested
+**Features Implemented:**
+- ✅ Parse .hex files (8 hex digits per line = 32-bit word)
+- ✅ Validate hex file format
+- ✅ Load programs into memory
+- ✅ Support blank lines and mixed case hex
+- ✅ Comprehensive error handling
+
+**Testing Results: 23/23 tests passing**
+
+#### 1.4 Integration Testing ✅ **COMPLETE**
+**File:** `tests/test_phase1_integration.py`
+**Tests Created:** 7 integration tests
+- ✅ test_load_and_fetch_test_base_program: Full test_base.hex execution
+- ✅ test_memory_fetch_integration: Memory-fetch cooperation
+- ✅ test_fetch_from_data_region: Data region access
+- ✅ test_branch_and_fetch: Branch and fetch operations
+- ✅ test_sequential_fetch_pattern: Sequential instruction fetching
+- ✅ test_phase1_components_exist: Module verification
+- ✅ test_phase1_test_coverage: Test coverage verification
+
+**Testing Results: 7/7 integration tests passing**
+
+#### 1.5 Test Program ✅ **COMPLETE**
+**File:** `tests/programs/test_base.hex`
+**Content:** 11 RISC-V instructions from specification
+- addi x1, x0, 5
+- addi x2, x0, 10
+- add x3, x1, x2
+- sub x4, x2, x1
+- lui x5, 0x00010
+- sw x3, 0(x5)
+- lw x4, 0(x5)
+- beq x3, x4, label1
+- addi x6, x0, 1 (skipped)
+- addi x6, x0, 2
+- jal x0, 0 (infinite loop)
+
+**Status:** Successfully loads and fetches all instructions
+
+---
+
+### Phase 1 Deliverables Summary
+
+✅ **All deliverables complete:**
+- 3 new modules: memory.py (447 lines), fetch.py (230 lines), hex_loader.py (136 lines)
+- 81 new tests: 26 memory + 25 fetch + 23 hex_loader + 7 integration
+- test_base.hex program created and verified
+- All existing tests still passing (411 tests)
+- **Total: 492 tests passing (100% pass rate)**
+- Git branch: Instruction-Memory-and-Fetch-Unit (2 commits)
+- All constraints followed: no host arithmetic operators in core logic
+- Full documentation with AI-BEGIN/AI-END markers
+
+---
+
+## Phase 2: Instruction Decoder (Week 1-2) ⏳ **NOT STARTED**
 ```python
 def load_hex_file(filepath) -> List[int]:
     """
@@ -867,7 +957,12 @@ All AI assistance must be documented in `AI_USAGE.md` including:
 
 ## Deliverables Checklist
 
-- [ ] Phase 1: Memory and Fetch (15 + 10 + 10 = 35 tests)
+- [x] **Phase 1: Memory and Fetch (81 tests) ✅ COMPLETE - November 14, 2025**
+  - [x] riscsim/cpu/memory.py (447 lines, 26 tests)
+  - [x] riscsim/cpu/fetch.py (230 lines, 25 tests)
+  - [x] riscsim/utils/hex_loader.py (136 lines, 23 tests)
+  - [x] tests/test_phase1_integration.py (7 tests)
+  - [x] tests/programs/test_base.hex (11 instructions)
 - [ ] Phase 2: Decoder (28 tests)
 - [ ] Phase 3: Datapath (28 tests)
 - [ ] Phase 4: CPU Top-Level (20 tests)
@@ -875,11 +970,13 @@ All AI assistance must be documented in `AI_USAGE.md` including:
 - [ ] Phase 6: Documentation (4 docs + 2 diagrams)
 - [ ] Phase 7: Integration Testing (30 tests)
 - [ ] README.md updated
-- [ ] GitHub repository with branches
-- [ ] test_base.hex executes correctly
-- [ ] All 454 tests passing
-- [ ] AI usage documented
+- [x] GitHub repository with branches (Instruction-Memory-and-Fetch-Unit)
+- [x] test_base.hex created and verified
+- [ ] All target tests passing (currently 492/492 passing, Phase 1 complete)
+- [x] AI usage documented (AI-BEGIN/AI-END markers in all new code)
 - [ ] Final submission on Canvas
+
+**Progress: Phase 1 Complete (1/7 phases) - 14.3% of implementation**
 
 ---
 
@@ -893,5 +990,8 @@ For questions or issues during implementation:
 
 ---
 
-**Last Updated:** December 2024  
-**Status:** Planning Complete - Ready for Implementation
+**Last Updated:** November 14, 2025  
+**Status:** Phase 1 Complete - Phase 2 Ready to Begin  
+**Test Count:** 492 tests passing (411 existing + 81 new Phase 1)
+
+````
