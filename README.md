@@ -273,8 +273,12 @@ pytest tests/test_programs.py -v     # Program execution tests (10 tests)
 
 # Run with output
 pytest -v -s
-```
 
+# Run Test on test_base.hex in RISCIM/tests/programs/test_base.hex
+
+python3 run_test_base.py # python file in RISCIM/run_test_base.py
+
+```
 ### Test Coverage
 
 | Component | Tests | Status |
