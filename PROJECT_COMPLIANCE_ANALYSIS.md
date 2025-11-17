@@ -1,8 +1,9 @@
 # Project Compliance Analysis
 ## RISCSim vs. RISC-V Numeric Ops Simulator Requirements
 
-**Analysis Date**: November 14, 2025  
-**Project Status**: Phase 8 Complete - 411 tests passing  
+**Authors:** Joshua Castaneda and Ivan Flores
+**Analysis Date**: November 14, 2025
+**Project Status**: Phase 8 Complete - 411 tests passing
 **Analyst**: AI Assistant (Claude Sonnet 4.5)
 
 ---

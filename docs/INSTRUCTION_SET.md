@@ -1,5 +1,7 @@
 # RISCSim Instruction Set Documentation
 
+**Authors:** Joshua Castaneda and Ivan Flores
+
 ## Table of Contents
 1. [Overview](#overview)
 2. [Instruction Formats](#instruction-formats)

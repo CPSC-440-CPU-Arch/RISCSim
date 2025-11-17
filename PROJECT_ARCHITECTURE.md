@@ -1,5 +1,7 @@
 # RISCSim Project Architecture
 
+**Authors:** Joshua Castaneda and Ivan Flores
+
 ## Compliance with "No Host Operators" Requirement
 
 This document explains how RISCSim meets the strict requirement: **"No built-in numeric operators in implementation modules"**.

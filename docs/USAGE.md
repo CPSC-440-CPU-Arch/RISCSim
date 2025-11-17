@@ -1,5 +1,7 @@
 # RISCSim Usage Guide
 
+**Authors:** Joshua Castaneda and Ivan Flores
+
 ## Table of Contents
 1. [Installation](#installation)
 2. [Quick Start](#quick-start)

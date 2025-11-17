@@ -1,5 +1,7 @@
 # AI Usage Disclosure
 
+**Authors:** Joshua Castaneda and Ivan Flores
+
 This document tracks all AI assistance used in the development of RISCSim.
 
 ## AI Tools Used

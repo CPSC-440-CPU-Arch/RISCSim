@@ -1,5 +1,6 @@
 # RISCSim - Final Submission Summary
 
+**Authors:** Joshua Castaneda and Ivan Flores
 **Date:** November 16, 2025
 **Project:** RISC-V CPU Simulator (RV32I Implementation)
 **Status:** ✅ **READY FOR SUBMISSION**

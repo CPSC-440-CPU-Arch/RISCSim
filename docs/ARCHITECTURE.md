@@ -1,5 +1,7 @@
 # RISCSim CPU Architecture Documentation
 
+**Authors:** Joshua Castaneda and Ivan Flores
+
 ## Table of Contents
 1. [System Overview](#system-overview)
 2. [Component Descriptions](#component-descriptions)

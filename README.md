@@ -1,5 +1,7 @@
 # RISCSim - RISC-V CPU Simulator
 
+**Authors:** Joshua Castaneda and Ivan Flores
+
 A complete, hardware-accurate **single-cycle RISC-V CPU simulator** implementing the RV32I base instruction set with extensions for multiply/divide (M) and floating-point (F) operations.
 
 ## Overview

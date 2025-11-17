@@ -1,5 +1,7 @@
 # RISC-V CPU Implementation Plan
 
+**Authors:** Joshua Castaneda and Ivan Flores
+
 ## Project Overview
 
 Transform the existing RISCSim numeric operations simulator into a complete single-cycle RISC-V CPU simulator implementing the RV32I ISA subset. This project targets 100 base points with opportunities for up to 40 extra credit points.
