@@ -56,7 +56,7 @@ cpu.load_program('tests/programs/test_base.hex')
 result = cpu.run(max_cycles=1000)
 
 # Check results
-print(f"Executed {result.instruction_count} instructions")
+print(f"Executed {result.instructions} instructions")
 print(f"Final state: x1={cpu.get_register(1)}, x3={cpu.get_register(3)}")
 print(cpu.dump_registers())
 ```
@@ -87,9 +87,11 @@ RISCSim/
 │       ├── components.py      # Hardware components (mux, demux)
 │       ├── twos_complement.py # Two's complement operations
 │       └── hex_loader.py      # .hex file loader
-├── tests/                     # Comprehensive test suite (586 tests)
+├── tests/                     # Comprehensive test suite (601 tests)
 │   ├── test_*.py              # Component tests
-│   └── programs/              # Test programs (.hex files)
+│   ├── test_integration_comprehensive.py  # Phase 7 integration tests
+│   └── programs/              # Test programs (.hex and .s files)
+│       ├── test_base.s        # Assembly source file
 │       ├── test_base.hex      # Provided reference program
 │       ├── test_arithmetic.hex
 │       ├── test_logical.hex
@@ -105,6 +107,8 @@ RISCSim/
 ├── examples/                  # Usage examples
 │   ├── control_unit_demo.py
 │   └── ... (component demos)
+├── run_test_base.py           # Demo script to run test_base.hex
+├── verify_hex.py              # Script to verify .hex matches .s source
 ├── encode_riscv.py            # Helper to create .hex files
 ├── pyproject.toml             # Modern Python packaging config
 ├── requirements.txt           # Dependencies
@@ -150,7 +154,7 @@ pip install .
 ### Verify Installation
 
 ```bash
-# Run full test suite (586 tests)
+# Run full test suite (601 tests)
 pytest
 
 # Run with verbose output
@@ -158,6 +162,9 @@ pytest -v
 
 # Run specific test file
 pytest tests/test_cpu.py -v
+
+# Run Phase 7 integration tests
+pytest tests/test_integration_comprehensive.py -v
 ```
 
 ## Usage Examples
@@ -177,7 +184,7 @@ cpu.load_program('tests/programs/test_base.hex')
 result = cpu.run(max_cycles=1000)
 
 # Print results
-print(f"Executed {result.instruction_count} instructions in {result.cycle_count} cycles")
+print(f"Executed {result.instructions} instructions in {result.cycles} cycles")
 print(f"Halt reason: {result.halt_reason}")
 
 # Inspect final register state
@@ -228,6 +235,18 @@ cpu.run()
 print(f"Result: x3 = {cpu.get_register(3)}")  # Should be 60
 ```
 
+### Running Demonstration Scripts
+
+The project includes ready-to-use demonstration scripts:
+
+```bash
+# Run the test_base.hex program with detailed output
+python3 run_test_base.py
+
+# Verify that test_base.hex matches test_base.s assembly source
+python3 verify_hex.py
+```
+
 ### Performance Analysis
 
 ```python
@@ -252,7 +271,7 @@ for instr, count in sorted(stats.instruction_mix.items()):
 
 ## Testing
 
-RISCSim includes a comprehensive test suite with **586 tests** covering all components:
+RISCSim includes a comprehensive test suite with **601 tests** covering all components:
 
 ```bash
 # Run all tests
@@ -262,14 +281,15 @@ pytest
 pytest --cov=riscsim --cov-report=term-missing
 
 # Run specific component tests
-pytest tests/test_cpu.py -v          # CPU tests (20 tests)
-pytest tests/test_datapath.py -v     # Datapath tests (28 tests)
-pytest tests/test_decoder.py -v      # Decoder tests (36 tests)
-pytest tests/test_memory.py -v       # Memory tests (26 tests)
-pytest tests/test_fetch.py -v        # Fetch tests (25 tests)
+pytest tests/test_cpu.py -v                        # CPU tests (20 tests)
+pytest tests/test_datapath.py -v                   # Datapath tests (28 tests)
+pytest tests/test_decoder.py -v                    # Decoder tests (36 tests)
+pytest tests/test_memory.py -v                     # Memory tests (26 tests)
+pytest tests/test_fetch.py -v                      # Fetch tests (25 tests)
 
 # Run test programs
-pytest tests/test_programs.py -v     # Program execution tests (10 tests)
+pytest tests/test_programs.py -v                   # Program execution tests (10 tests)
+pytest tests/test_integration_comprehensive.py -v  # Integration tests (15 tests)
 
 # Run with output
 pytest -v -s
